@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Ôn Luyện Hán Tự</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f4f5; }
+        .quiz-container { max-width: 800px; margin: 2rem auto; }
+        .btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 600; transition: background-color 0.2s; cursor: pointer; border: none; }
+        .btn-primary { background-color: #2563eb; color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: #1d4ed8; }
+        .btn-primary:disabled { background-color: #93c5fd; cursor: not-allowed; }
+        .btn-secondary { background-color: #e5e7eb; color: #374151; }
+        .btn-secondary:hover:not(:disabled) { background-color: #d1d5db; }
+        .btn-secondary:disabled { background-color: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+        .btn-danger { background-color: #dc2626; color: white; }
+        .btn-danger:hover { background-color: #b91c1c; }
+        .hidden { display: none; }
+        #answerInput { font-size: 1.5rem; text-align: center; border: 2px solid #d1d5db; border-radius: 0.5rem; transition: all 0.2s; }
+        #answerInput:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        #answerInput.correct { border-color: #22c55e; background-color: #f0fdf4; color: #16a34a; }
+        #answerInput.incorrect { border-color: #ef4444; background-color: #fef2f2; color: #b91c1c; }
+        #questionDisplay.is-hanzi { font-size: 6rem; font-weight: bold; }
+        #questionDisplay.is-text { font-size: 1.75rem; font-weight: 600; }
+        #feedback p { margin: 0; }
+        #fileUploadLabel {
+            cursor: pointer;
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+        }
+        #fileUploadLabel:hover {
+            background-color: #4338ca;
+        }
+        .delete-source-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0 0.5rem;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .delete-source-btn:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="quiz-container bg-white p-6 rounded-xl shadow-lg">
+
+        <!-- Selection Screen -->
+        <div id="selectionScreen">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Ôn Luyện Hán Tự</h1>
+            <p class="text-center text-gray-500 mb-6">Tùy chỉnh bài ôn tập của bạn.</p>
+
+            <div class="space-y-6">
+                <div>
+                    <h2 class="text-xl font-semibold mb-3 border-b pb-2">1. Chọn Nguồn Dữ Liệu</h2>
+                    <div id="sourceSelectionList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <!-- Source checkboxes will be inserted here -->
+                    </div>
+                     <!-- <div class="mt-4">
+                        <label for="pdfUploader" id="fileUploadLabel" class="btn btn-primary text-sm py-2 px-4">
+                            Tải lên tệp PDF
+                        </label>
+                        <input type="file" id="pdfUploader" class="hidden" accept=".pdf">
+                        <p id="uploadStatus" class="text-sm text-gray-600 mt-2"></p>
+                    </div> -->
+                    <!-- <div class="mt-4">
+                        <label for="jsonUploader" id="jsonUploadLabel" class="btn btn-primary text-sm py-2 px-4">
+                            Tải lên tệp JSON
+                        </label>
+                        <input type="file" id="jsonUploader" class="hidden" accept=".json">
+                        <p id="jsonUploadStatus" class="text-sm text-gray-600 mt-2"></p>
+                    </div> -->
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-semibold mb-3 border-b pb-2">2. Chọn Hán Tự</h2>
+                    <div class="flex items-center space-x-4 mb-3 flex-wrap gap-2">
+                        <button id="selectAllBtn" class="btn btn-secondary text-sm py-1 px-3">Chọn tất cả</button>
+                        <button id="deselectAllBtn" class="btn btn-secondary text-sm py-1 px-3">Bỏ chọn tất cả</button>
+                        <div id="randomSelectionContainer" class="hidden">
+                             <span class="text-sm font-medium mr-2">| Chọn ngẫu nhiên:</span>
+                            <div class="inline-flex rounded-md shadow-sm" role="group">
+                                <button type="button" id="rand20Btn" data-count="20" class="random-select-btn btn btn-secondary text-sm py-1 px-3 rounded-l-md hidden">20 từ</button>
+                                <button type="button" id="rand50Btn" data-count="50" class="random-select-btn btn btn-secondary text-sm py-1 px-3 -ml-px hidden">50 từ</button>
+                                <button type="button" id="rand70Btn" data-count="70" class="random-select-btn btn btn-secondary text-sm py-1 px-3 -ml-px rounded-r-md hidden">70 từ</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="characterSelectionList" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-3 border rounded-md bg-gray-50">
+                        <p class="col-span-full text-center text-gray-500">Vui lòng chọn nguồn dữ liệu ở trên.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-semibold mb-3 border-b pb-2">3. Chọn Hình Thức Luyện Tập</h2>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <label class="flex-1 p-4 border-2 rounded-lg cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500 transition-all">
+                            <input type="radio" name="quizType" value="hanViet" class="mr-2">
+                            <span class="font-medium">Luyện Hán Việt</span>
+                            <p class="text-sm text-gray-500 mt-1">Nhìn Hán tự, gõ âm Hán Việt.</p>
+                        </label>
+                        <label class="flex-1 p-4 border-2 rounded-lg cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500 transition-all">
+                            <input type="radio" name="quizType" value="hanTu" checked class="mr-2">
+                            <span class="font-medium">Luyện Hán Tự</span>
+                            <p class="text-sm text-gray-500 mt-1">Nhìn gợi ý (nghĩa, nguồn gốc), gõ Hán tự.</p>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-8">
+                <button id="startQuizBtn" class="btn btn-primary w-full md:w-auto text-lg">Bắt đầu Quiz</button>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quizScreen" class="hidden">
+             <!-- Quiz content will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- PDF.js Configuration ---
+            // pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js`;
+            
+            // --- Gemini API Configuration ---
+            const GEMINI_API_KEY = ""; // Leave empty
+            const GEMINI_MODEL_TEXT = "gemini-2.0-flash";
+            
+            let allCharactersData = {
+                // "Hán Tự (1-101)":[{"id":1,"char":"一天","hanViet":"nhất thiên","pinyin":"yītiān","meaning":"1 ngày"},{"id":2,"char":"一心","hanViet":"nhất tâm","pinyin":"yīxīn","meaning":"chuyên tâm, một lòng"},{"id":3,"char":"二十","hanViet":"nhị thập","pinyin":"èrshí","meaning":"20"},{"id":4,"char":"二月","hanViet":"nhị nguyệt","pinyin":"èryuè","meaning":"tháng 2"},{"id":5,"char":"二心","hanViet":"nhị tâm","pinyin":"èrxīn","meaning":"hai lòng, không trung thực"},{"id":6,"char":"三十","hanViet":"tam thập","pinyin":"sānshí","meaning":"30"},{"id":7,"char":"三月","hanViet":"tam nguyệt","pinyin":"sānyuè","meaning":"tháng 3"},{"id":8,"char":"十五","hanViet":"thập ngũ","pinyin":"shíwǔ","meaning":"15"},{"id":9,"char":"十分","hanViet":"thập phần","pinyin":"shífēn","meaning":"mười phần, rất"},{"id":10,"char":"九十","hanViet":"cửu thập","pinyin":"jiǔshí","meaning":"90"},{"id":11,"char":"九月","hanViet":"cửu nguyệt","pinyin":"jiǔyuè","meaning":"tháng 9"},{"id":12,"char":"九品","hanViet":"cửu phẩm","pinyin":"jiǔpǐn","meaning":"9 cấp"},{"id":13,"char":"人力","hanViet":"nhân lực","pinyin":"rénlì","meaning":"sức người"},{"id":14,"char":"水力","hanViet":"thủy lực","pinyin":"shuǐlì","meaning":"sức nước"},{"id":15,"char":"火力","hanViet":"hỏa lực","pinyin":"huǒlì","meaning":"sức lửa, sức chịu lạnh"},{"id":16,"char":"土地","hanViet":"thổ địa","pinyin":"tǔdì","meaning":"ruộng đất"},{"id":17,"char":"上山","hanViet":"thượng sơn","pinyin":"shàngshān","meaning":"lên núi"},{"id":18,"char":"上品","hanViet":"thượng phẩm","pinyin":"shàngpǐn","meaning":"sản phẩm cao cấp"},{"id":19,"char":"下水","hanViet":"hạ thuỷ","pinyin":"xiàshuǐ","meaning":"đưa xuống nước"},{"id":20,"char":"下品","hanViet":"hạ phẩm","pinyin":"xiàpǐn","meaning":"loại xấu, loại kém"},{"id":21,"char":"手下","hanViet":"thủ hạ","pinyin":"shǒuxià","meaning":"dưới quyền, thuộc hạ"},{"id":22,"char":"竹林","hanViet":"trúc lâm","pinyin":"zhúlín","meaning":"rừng trúc"},{"id":23,"char":"四川","hanViet":"Tứ Xuyên","pinyin":"sìchuān","meaning":"tỉnh Tứ Xuyên, Trung Quốc"},{"id":24,"char":"山水","hanViet":"sơn thuỷ","pinyin":"shānshuǐ","meaning":"núi và sông, cảnh thiên nhiên"},{"id":25,"char":"水手","hanViet":"thuỷ thủ","pinyin":"shuǐshǒu","meaning":"người làm việc trên tàu"},{"id":26,"char":"冰山","hanViet":"băng sơn","pinyin":"bīngshān","meaning":"núi băng"},{"id":27,"char":"冰川","hanViet":"băng xuyên","pinyin":"bīngchuān","meaning":"sông băng"},{"id":28,"char":"高山","hanViet":"cao sơn","pinyin":"gāoshān","meaning":"núi cao"},{"id":29,"char":"江山","hanViet":"giang san","pinyin":"jiāngshān","meaning":"đất nước; nước non"},{"id":30,"char":"火山","hanViet":"hỏa san","pinyin":"huǒshān","meaning":"núi lửa"},{"id":31,"char":"草木","hanViet":"thảo mộc","pinyin":"cǎomù","meaning":"cỏ cây"},{"id":32,"char":"木材","hanViet":"mộc tài","pinyin":"mùcái","meaning":"gỗ, vật liệu gỗ"},{"id":33,"char":"木片","hanViet":"mộc phiến","pinyin":"mùpiàn","meaning":"tấm ván"},{"id":34,"char":"片面","hanViet":"phiến diện","pinyin":"piànmiàn","meaning":"mặt, bề mặt"},{"id":35,"char":"小妹","hanViet":"tiểu muội","pinyin":"xiǎomèi","meaning":"em gái"},{"id":36,"char":"告示","hanViet":"cáo thị","pinyin":"gàoshì","meaning":"thông báo từ chính quyền"},{"id":37,"char":"表示","hanViet":"biểu thị","pinyin":"biǎoshì","meaning":"thể hiện ra, bộc lộ ra"},{"id":38,"char":"化石","hanViet":"hóa thạch","pinyin":"huàshí","meaning":"hoá đá"},{"id":39,"char":"石匠","hanViet":"thạch tượng","pinyin":"shíjiang","meaning":"thợ làm đá"},{"id":40,"char":"六十","hanViet":"lục thập","pinyin":"liùshí","meaning":"60"},{"id":41,"char":"六月","hanViet":"lục nguyệt","pinyin":"liùyuè","meaning":"tháng 6"},{"id":42,"char":"心中","hanViet":"tâm trung","pinyin":"xīnzhōng","meaning":"trong lòng"},{"id":43,"char":"中心","hanViet":"trung tâm","pinyin":"zhōngxīn","meaning":"ở giữa"},{"id":44,"char":"刀片","hanViet":"đao phiến","pinyin":"dāopiàn","meaning":"lưỡi dao (trong cắt gọt)"},{"id":45,"char":"公斤","hanViet":"công cân","pinyin":"gōngjīn","meaning":"kilogam, kg"},{"id":46,"char":"干戈","hanViet":"can qua","pinyin":"gāngē","meaning":"binh khí, khí giới, vũ khí (chỉ chiến tranh)"},{"id":47,"char":"工人","hanViet":"công nhân","pinyin":"gōngrén","meaning":"người thợ"},{"id":48,"char":"手工","hanViet":"thủ công","pinyin":"shǒugōng","meaning":"làm bằng tay"},{"id":49,"char":"入口","hanViet":"nhập khẩu","pinyin":"rùkǒu","meaning":"cửa vào, lối vào, ăn vào miệng, nhập cảng"},{"id":50,"char":"口氣","hanViet":"khẩu khí","pinyin":"kǒuqì","meaning":"giọng điệu"},{"id":51,"char":"口味","hanViet":"khẩu vị","pinyin":"kǒuwèi","meaning":"gu, hương vị"},{"id":52,"char":"品行","hanViet":"phẩm hạnh","pinyin":"pǐnxíng","meaning":"tính nết, phẩm chất tốt của con người (thường nói về phụ nữ)"},{"id":53,"char":"人品","hanViet":"nhân phẩm","pinyin":"rénpǐn","meaning":"phẩm cách con người"},{"id":54,"char":"言語","hanViet":"ngôn ngữ","pinyin":"yányǔ","meaning":"là phương tiện giao tiếp chính của con người"},{"id":55,"char":"八月","hanViet":"bát nguyệt","pinyin":"bāyuè","meaning":"tháng 8"},{"id":56,"char":"四十","hanViet":"tứ thập","pinyin":"sìshí","meaning":"40"},{"id":57,"char":"四月","hanViet":"tứ nguyệt","pinyin":"sìyuè","meaning":"tháng 4"},{"id":58,"char":"四方","hanViet":"tứ phương","pinyin":"sìfāng","meaning":"khắp nơi"},{"id":59,"char":"日子","hanViet":"nhật tử","pinyin":"rìzi","meaning":"ngày, thời gian, cuộc sống:"},{"id":60,"char":"生日","hanViet":"sinh nhật","pinyin":"shēngrì","meaning":"ngày sinh"},{"id":61,"char":"目下","hanViet":"mục hạ","pinyin":"mùxià","meaning":"ngay trước mắt"},{"id":62,"char":"目見","hanViet":"mục kiến","pinyin":"mùjiàn","meaning":"mắt thấy, chính mắt thấy."},{"id":63,"char":"人力","hanViet":"nhân lực","pinyin":"rénlì","meaning":"sức người"},{"id":64,"char":"人工","hanViet":"nhân công","pinyin":"réngōng","meaning":"sức người"},{"id":65,"char":"人才","hanViet":"nhân tài","pinyin":"réncái","meaning":"người tài"},{"id":66,"char":"女生","hanViet":"nữ sinh","pinyin":"nǚshēng","meaning":"học sinh nữ"},{"id":67,"char":"女工","hanViet":"nữ công","pinyin":"nǚgōng","meaning":"công nhân nữ"},{"id":68,"char":"男子","hanViet":"nam tử","pinyin":"nánzǐ","meaning":"con trai:男孩子 bé trai"},{"id":69,"char":"女子","hanViet":"nữ tử","pinyin":"nǚzǐ","meaning":"con gái"},{"id":70,"char":"好色","hanViet":"hiếu sắc","pinyin":"hàosè","meaning":"ham sắc đẹp"},{"id":71,"char":"好看","hanViet":"hảo khán","pinyin":"hǎokàn","meaning":"đẹp, coi được"},{"id":72,"char":"好吃","hanViet":"hảo cật","pinyin":"hǎochī","meaning":"ngon, ăn ngon"},{"id":73,"char":"了解","hanViet":"liễu giải","pinyin":"liǎojiě","meaning":"hiểu rõ."},{"id":74,"char":"私人","hanViet":"tư nhân","pinyin":"sīrén","meaning":"thuộc về cá nhân"},{"id":75,"char":"私利","hanViet":"tư lợi","pinyin":"sīlì","meaning":"cái lợi cá nhân"},{"id":76,"char":"公安","hanViet":"công an","pinyin":"gōngān","meaning":"giữ gìn trật tự công cộng."},{"id":77,"char":"公共","hanViet":"công cộng","pinyin":"gōnggòng","meaning":"chung của mọi người: 公共汽车 [gōnggòng qìchē] xe buýt"},{"id":78,"char":"公事","hanViet":"công sự","pinyin":"gōngshì","meaning":"việc chung."},{"id":79,"char":"可以","hanViet":"khả dĩ","pinyin":"kěyǐ","meaning":"có thể, được"},{"id":80,"char":"以上","hanViet":"dĩ thượng","pinyin":"yǐshàng","meaning":"trở lên, trên đây"},{"id":81,"char":"以下","hanViet":"dĩ hạ","pinyin":"yǐxià","meaning":"trở xuống, dưới đây"},{"id":82,"char":"相似","hanViet":"tương tự","pinyin":"xiāngsì","meaning":"giống như, giống nhau"},{"id":83,"char":"去年","hanViet":"khứ niên","pinyin":"qùnián","meaning":"năm ngoái"},{"id":84,"char":"去蟲","hanViet":"khử trùng","pinyin":"qùchóng","meaning":"loại bỏ vi khuẩn, nấm.."},{"id":85,"char":"合法","hanViet":"hợp pháp","pinyin":"héfǎ","meaning":"phù hợp với quy định của pháp luật"},{"id":86,"char":"方法","hanViet":"phương pháp","pinyin":"fāngfǎ","meaning":"cách làm: 工作方法 [gōngzuò fāngfǎ] phương pháp làm việc"},{"id":87,"char":"五金","hanViet":"ngũ kim","pinyin":"wǔjīn","meaning":"năm loài kim, kim khí chỉ chung."},{"id":88,"char":"金言","hanViet":"kim ngôn","pinyin":"jīnyán","meaning":"lời vàng."},{"id":89,"char":"竹林","hanViet":"trúc lâm","pinyin":"zhúlín","meaning":"rừng tre."},{"id":90,"char":"山林","hanViet":"sơn lâm","pinyin":"shānlín","meaning":"núi rừng"},{"id":91,"char":"森林","hanViet":"sâm lâm","pinyin":"sēnlín","meaning":"rừng rậm"},{"id":92,"char":"末世","hanViet":"mạt thế","pinyin":"mòshì","meaning":"cuối thời"},{"id":93,"char":"末法","hanViet":"mạt pháp","pinyin":"mòfǎ","meaning":"thời kỳ suy tàn của Phật giáo"},{"id":94,"char":"本末","hanViet":"bản mạt","pinyin":"běnmò","meaning":"gốc ngọn, từ đầu đến cuối"},{"id":95,"char":"本性","hanViet":"bản tính","pinyin":"běnxìng","meaning":"cá tính vốn có"},{"id":96,"char":"笨人","hanViet":"bản nhân","pinyin":"bènrén","meaning":"người dốt"},{"id":97,"char":"未來","hanViet":"vị lai","pinyin":"wèilái","meaning":"mai sau, tương lai, sau này."},{"id":98,"char":"未成年","hanViet":"vị thành niên","pinyin":"wèichéngnián","meaning":"chưa trưởng thành."},{"id":99,"char":"口味","hanViet":"khẩu vị","pinyin":"kǒuwèi","meaning":"hương vị, gu ăn uống."},{"id":100,"char":"五味","hanViet":"ngũ vị","pinyin":"wǔwèi","meaning":"5vị: chua, cay, mặn, ngọt, đắng."},{"id":101,"char":"迷昧","hanViet":"mê muội","pinyin":"mímèi","meaning":"mê muội, mơ hồ, thiếu hiểu biết."}],
+                // "Hán Tự (102-202)":[{"id":102,"char":"妹妹","hanViet":"muội muội","pinyin":"mèimei","meaning":"em gái"},{"id":103,"char":"妹夫","hanViet":"muội phu","pinyin":"mèifu","meaning":"em rễ."},{"id":104,"char":"休息","hanViet":"hưu tức","pinyin":"xiūxi","meaning":"nghỉ ngơi: 休息室 [xiūxīshì] phòng nghỉ"},{"id":105,"char":"茶末","hanViet":"trà mạt","pinyin":"chámò","meaning":"vụn trà."},{"id":106,"char":"牛肉","hanViet":"ngưu nhục","pinyin":"niúròu","meaning":"thịt bò."},{"id":107,"char":"羊肉","hanViet":"dương nhục","pinyin":"yángròu","meaning":"thịt dê."},{"id":108,"char":"月光","hanViet":"nguyệt quang","pinyin":"yuèguāng","meaning":"ánh trăng"},{"id":109,"char":"半月","hanViet":"bán nguyệt","pinyin":"bànyuè","meaning":"nửa tháng, hình nửa mặt trăng."},{"id":110,"char":"朋友","hanViet":"bằng hữu","pinyin":"péngyǒu","meaning":"bạn bè."},{"id":111,"char":"車棚","hanViet":"xa bằng","pinyin":"chēpéng","meaning":"nhà xe, chỗ để xe"},{"id":112,"char":"牛棚","hanViet":"ngưu bằng","pinyin":"niúpéng","meaning":"chuồng bò, chuồng trâu"},{"id":113,"char":"明月","hanViet":"minh nguyệt","pinyin":"míngyuè","meaning":"ánh sáng trăng."},{"id":114,"char":"明天","hanViet":"minh thiên","pinyin":"míngtiān","meaning":"ngày mai."},{"id":115,"char":"明白","hanViet":"minh bạch","pinyin":"míngbái","meaning":"hiểu, làm sáng tỏ."},{"id":116,"char":"七夕","hanViet":"thất tịch","pinyin":"qīxī","meaning":"đêm mùng 7 tháng 7 âm lịch (Ngưu Lang và Chức Nữ gặp nhau, được coi là lễ tình nhân ở Trung Quốc."},{"id":117,"char":"多才","hanViet":"đa tài","pinyin":"duōcái","meaning":"nhiều tài"},{"id":118,"char":"法名","hanViet":"pháp danh","pinyin":"fǎmíng","meaning":"tên hiệu, do nhà chùa đặt"},{"id":119,"char":"名目","hanViet":"danh mục","pinyin":"míngmù","meaning":"bản ghi theo phân loại từng mục cụ thể."},{"id":120,"char":"名言","hanViet":"danh ngôn","pinyin":"míngyán","meaning":"lời nói hay, nhiều người biết."},{"id":121,"char":"毛衣","hanViet":"mao y","pinyin":"máoyī","meaning":"áo len đan"},{"id":122,"char":"羊毛","hanViet":"dương mao","pinyin":"yángmáo","meaning":"lông cừu."},{"id":123,"char":"手工","hanViet":"thủ công","pinyin":"shǒugōng","meaning":"làm bằng tay."},{"id":124,"char":"手巾","hanViet":"thủ cân","pinyin":"shǒujīn","meaning":"khăn mặt, khăn tay."},{"id":125,"char":"看法","hanViet":"khán pháp","pinyin":"kànfǎ","meaning":"cách nhìn, quan điểm"},{"id":126,"char":"看見","hanViet":"khán kiến","pinyin":"kànjiàn","meaning":"thấy, nhìn thấy"},{"id":127,"char":"看病","hanViet":"khán bệnh","pinyin":"kànbìng","meaning":"xem bệnh, đi khám"},{"id":128,"char":"再見","hanViet":"tái kiến","pinyin":"zàijiàn","meaning":"chào tạm biệt, hẹn gặp lại"},{"id":129,"char":"見面","hanViet":"kiến diện","pinyin":"jiànmiàn","meaning":"gặp mặt"},{"id":130,"char":"人才","hanViet":"nhân tài","pinyin":"réncái","meaning":"người tài"},{"id":131,"char":"天才","hanViet":"thiên tài","pinyin":"tiāncái","meaning":"tài năng xuất chúng."},{"id":132,"char":"木材","hanViet":"mộc tài","pinyin":"mùcái","meaning":"vật liệu gỗ, gỗ"},{"id":133,"char":"材料","hanViet":"tài liệu","pinyin":"cáiliào","meaning":"vật liệu (vật có thể trực tiếp tạo ra thành phẩm), tư liệu: 耐火材料 [nàihuǒ cáiliào] vật liệu chịu lửa"},{"id":134,"char":"財力","hanViet":"tài lực","pinyin":"cáilì","meaning":"tiền vốn, tiềm lực tài chính, năng lực tài chính"},{"id":135,"char":"家財","hanViet":"gia tài","pinyin":"jiācái","meaning":"của cải trong nhà."},{"id":136,"char":"我們","hanViet":"ngã môn","pinyin":"wǒmen","meaning":"chúng tôi."},{"id":137,"char":"俄國","hanViet":"Nga quốc","pinyin":"éguó","meaning":"nước Nga."},{"id":138,"char":"俄語","hanViet":"Nga Ngữ","pinyin":"éyǔ","meaning":"tiếng Nga"},{"id":139,"char":"找工作","hanViet":"trảo công tác","pinyin":"zhǎogōngzuò","meaning":"tìm việc làm."},{"id":140,"char":"找材料","hanViet":"trảo tài liệu","pinyin":"zhǎocáiliào","meaning":"tìm tài liệu"},{"id":141,"char":"升天","hanViet":"thăng thiên","pinyin":"shēngtiān","meaning":"chầu trời, chết."},{"id":142,"char":"昇華","hanViet":"thăng hoa","pinyin":"shēnghuá","meaning":"bay hơi (chất rắn biến đổi trực tiếp thành khí mà không qua giai đoạn lỏng); ẩn dụ của những cái tinh túy được đề cao"},{"id":143,"char":"朋友","hanViet":"bằng hữu","pinyin":"péngyǒu","meaning":"bạn bè"},{"id":144,"char":"友好","hanViet":"hữu hảo","pinyin":"yǒuhǎo","meaning":"thân thiện, tốt, thân mật."},{"id":145,"char":"左手","hanViet":"tả thủ","pinyin":"zuǒshǒu","meaning":"tay trái"},{"id":146,"char":"左右","hanViet":"tả hữu","pinyin":"zuǒyòu","meaning":"trái và phải, khoảng, tầm."},{"id":147,"char":"佐藥","hanViet":"tá dược","pinyin":"zuǒyào","meaning":"chất thêm vào để chế dược phẩm."},{"id":148,"char":"右面","hanViet":"hữu diện","pinyin":"yòumiàn","meaning":"bên phải, mặt phải"},{"id":149,"char":"右手","hanViet":"hữu thủ","pinyin":"yòushǒu","meaning":"tay phải."},{"id":150,"char":"有名","hanViet":"hữu danh","pinyin":"yǒumíng","meaning":"nổi danh, có tiếng tăm"},{"id":151,"char":"有益","hanViet":"hữu ích","pinyin":"yǒuyì","meaning":"có ích."},{"id":152,"char":"在家","hanViet":"tại gia","pinyin":"zàijiā","meaning":"ở nhà."},{"id":153,"char":"在外","hanViet":"tại ngoại","pinyin":"zàiwài","meaning":"ở ngoài"},{"id":154,"char":"在心","hanViet":"tại tâm","pinyin":"zàixīn","meaning":"để ý, để tâm"},{"id":155,"char":"存在","hanViet":"tồn tại","pinyin":"cúnzài","meaning":"sống, còn, còn có."},{"id":156,"char":"存亡","hanViet":"tồn vong","pinyin":"cúnwáng","meaning":"sự sống và cái chết"},{"id":157,"char":"大名","hanViet":"đại danh","pinyin":"dàmíng","meaning":"quý danh"},{"id":158,"char":"大家","hanViet":"đại gia","pinyin":"dàjiā","meaning":"mọi người"},{"id":159,"char":"大好","hanViet":"đại hảo","pinyin":"dàhǎo","meaning":"rất tốt"},{"id":160,"char":"太多","hanViet":"thái đa","pinyin":"tàiduō","meaning":"quá nhiều."},{"id":161,"char":"不太多","hanViet":"","pinyin":"bùtàiduō","meaning":"không quá nhiều."},{"id":162,"char":"不太好","hanViet":"","pinyin":"bùtàihǎo","meaning":"không tốt lắm"},{"id":163,"char":"夭折","hanViet":"yểu chiết","pinyin":"yāozhé","meaning":"chết trẻ, chết non"},{"id":164,"char":"笑林","hanViet":"tiếu lâm","pinyin":"xiàolín","meaning":"tên bộ sách chép những chuyện cười (coi như một rừng cười)."},{"id":165,"char":"尤物","hanViet":"vưu vật","pinyin":"yóuwù","meaning":"người ưu tú"},{"id":166,"char":"尤其","hanViet":"vưu kỳ","pinyin":"yóuqí","meaning":"đặc biệt là"},{"id":167,"char":"天下","hanViet":"thiên hạ","pinyin":"tiānxià","meaning":"thế giới"},{"id":168,"char":"天氣","hanViet":"thiên khí","pinyin":"tiānqì","meaning":"thời tiết"},{"id":169,"char":"丈夫","hanViet":"trượng phu","pinyin":"zhàngfu","meaning":"chỉ đàn ông, người chồng."},{"id":170,"char":"夫人","hanViet":"phu nhân","pinyin":"fūrén","meaning":"vợ, bà xã"},{"id":171,"char":"扶手","hanViet":"phù thủ","pinyin":"fúshǒu","meaning":"lan can"},{"id":172,"char":"扶助","hanViet":"phù trợ","pinyin":"fúzhù","meaning":"giúp đỡ."},{"id":173,"char":"規定","hanViet":"quy định","pinyin":"guīdìng","meaning":"phép tắc đặt ra để mọi người noi theo"},{"id":174,"char":"規則","hanViet":"quy tắc","pinyin":"guīzé","meaning":"luật lệ, quy định"},{"id":175,"char":"失信","hanViet":"thất tín","pinyin":"shīxìn","meaning":"mất lòng tin"},{"id":176,"char":"失色","hanViet":"thất sắc","pinyin":"shīsè","meaning":"biến sắc"},{"id":177,"char":"古人","hanViet":"cổ nhân","pinyin":"gǔrén","meaning":"người xưa"},{"id":178,"char":"古代","hanViet":"cổ đại","pinyin":"gǔdài","meaning":"thời xa xưa"},{"id":179,"char":"古物","hanViet":"cổ vật","pinyin":"gǔwù","meaning":"đồ cổ."},{"id":180,"char":"苦瓜","hanViet":"khổ qua","pinyin":"kǔguā","meaning":"mướp đắng"},{"id":181,"char":"苦茶","hanViet":"khổ trà","pinyin":"kǔchá","meaning":"trà đắng"},{"id":182,"char":"辛苦","hanViet":"tân khổ","pinyin":"xīnkǔ","meaning":"vất vả, khổ cực."},{"id":183,"char":"尼姑","hanViet":"ni cô","pinyin":"nígū","meaning":"sư nữ"},{"id":184,"char":"姑娘","hanViet":"cô nương","pinyin":"gūniang","meaning":"cô gái, cô nàng (thường đọc thành gūniang)"},{"id":185,"char":"固守","hanViet":"cố thủ","pinyin":"gùshǒu","meaning":"cố giữ lấy"},{"id":186,"char":"固有","hanViet":"cố hữu","pinyin":"gùyǒu","meaning":"vốn có, sẵn có"},{"id":187,"char":"個人","hanViet":"cá nhân","pinyin":"gèrén","meaning":"một người riêng biệt"},{"id":188,"char":"個性","hanViet":"cá tính","pinyin":"gèxìng","meaning":"tính riêng của mỗi một người."},{"id":189,"char":"田地","hanViet":"điền địa","pinyin":"tiándì","meaning":"ruộng đất"},{"id":190,"char":"男生","hanViet":"nam sinh","pinyin":"nánshēng","meaning":"học sinh nam"},{"id":191,"char":"男性","hanViet":"nam tính","pinyin":"nánxìng","meaning":"tính cách đàn ông"},{"id":192,"char":"介紹","hanViet":"giới thiệu","pinyin":"jièshào","meaning":"nói về: 介紹信 [jièshào xìn] thư giới thiệu."},{"id":193,"char":"地界","hanViet":"địa giới","pinyin":"dìjiè","meaning":"ranh giới"},{"id":194,"char":"仙界","hanViet":"tiên giới","pinyin":"xiānjiè","meaning":"cõi tiên"},{"id":195,"char":"馬力","hanViet":"mã lực","pinyin":"mǎlì","meaning":"sức ngựa"},{"id":196,"char":"馬車","hanViet":"mã xa","pinyin":"mǎchē","meaning":"xe ngựa."},{"id":197,"char":"馬虎","hanViet":"mã hỗ","pinyin":"mǎhu","meaning":"qua loa, đại khái:"},{"id":198,"char":"好嗎","hanViet":"hảo ma","pinyin":"hǎoma","meaning":"được không"},{"id":199,"char":"媽媽","hanViet":"ma ma","pinyin":"māma","meaning":"mẹ."},{"id":200,"char":"大媽","hanViet":"đại ma","pinyin":"dàmā","meaning":"bác gái."},{"id":201,"char":"密碼","hanViet":"mật mã","pinyin":"mìmǎ","meaning":"số hiệu mật"},{"id":202,"char":"號碼","hanViet":"hiệu mã","pinyin":"hàomǎ","meaning":"số, mã số"}],
+                // "Hán Tự (203-303)":[{"id":203,"char":"書包","hanViet":"thư bao","pinyin":"shūbāo","meaning":"cặp sách, cặp đựng sách đi học."},{"id":204,"char":"包容","hanViet":"bao dung","pinyin":"bāoróng","meaning":"chứa, dung nạp, độ lượng."},{"id":205,"char":"同胞","hanViet":"đồng bào","pinyin":"tóngbāo","meaning":"con cháu một ông tổ sinh ra, nay cũng dùng với nghĩa anh chị em ruột; ruột thịt"},{"id":206,"char":"胞妹","hanViet":"bào muội","pinyin":"bāomèi","meaning":"em gái ruột."},{"id":207,"char":"懷抱","hanViet":"hoài bão","pinyin":"huáibào","meaning":"ôm, giữ trong lòng, ôm ấp"},{"id":208,"char":"已然","hanViet":"dĩ nhiên","pinyin":"yǐrán","meaning":"chắc chắn rồi, việc đã rồi."},{"id":209,"char":"已往","hanViet":"dĩ vãng","pinyin":"yǐwǎng","meaning":"trước đây"},{"id":210,"char":"自己","hanViet":"tự kỷ","pinyin":"zìjǐ","meaning":"tự mình, tự bản thân mình:"},{"id":211,"char":"利己","hanViet":"lợi kỉ","pinyin":"lìjǐ","meaning":"chỉ lợi mình: 利己主義 [lìjǐ zhǔyì] chủ nghĩa cá nhân."},{"id":212,"char":"紀念","hanViet":"kỉ niệm","pinyin":"jìniàn","meaning":"ghi nhớ, nhớ sâu sắc"},{"id":213,"char":"日記","hanViet":"nhật kí","pinyin":"rìjì","meaning":"ghi chép hàng ngày."},{"id":214,"char":"記事","hanViet":"kí sự","pinyin":"jìshì","meaning":"ghi lại sự việc"},{"id":215,"char":"失信","hanViet":"thất tín","pinyin":"shīxìn","meaning":"mất lòng tin"},{"id":216,"char":"相信","hanViet":"tương tín","pinyin":"xiāngxìn","meaning":"tin tưởng: 相信我 [xiāngxìn wǒ] tin tôi đi"},{"id":217,"char":"居住","hanViet":"cư trú","pinyin":"jūzhù","meaning":"ở, sống ở"},{"id":218,"char":"居民","hanViet":"cư dân","pinyin":"jūmín","meaning":"người dân ở trong một khu vực nhất định"},{"id":219,"char":"移居","hanViet":"di cư","pinyin":"yíjū","meaning":"chuyển đến chỗ khác sinh sống"},{"id":220,"char":"尺子","hanViet":"xích tử","pinyin":"chǐzi","meaning":"thước đo: 丁字尺 [dīngzì chǐ] thước chữ T."},{"id":221,"char":"句子","hanViet":"cú tử","pinyin":"jùzi","meaning":"câu văn: 句子成分 [jùzi chéngfèn] thành phần câu."},{"id":222,"char":"句法","hanViet":"cú pháp","pinyin":"jùfǎ","meaning":"kết cấu câu văn:"},{"id":223,"char":"拘束","hanViet":"câu thúc","pinyin":"jūshù","meaning":"gò bó, ép buộc, hạn chế"},{"id":224,"char":"拘泥","hanViet":"câu nệ","pinyin":"jūnì","meaning":"cố chấp, khăng khăng"},{"id":225,"char":"小狗","hanViet":"tiểu cầu","pinyin":"xiǎogǒu","meaning":"chó con."},{"id":226,"char":"海狗","hanViet":"hải cẩu","pinyin":"hǎigǒu","meaning":"chó biển."},{"id":227,"char":"夠好","hanViet":"cấu hảo","pinyin":"gòuhǎo","meaning":"đủ tốt:"},{"id":228,"char":"不夠","hanViet":"bất cấu","pinyin":"búgòu","meaning":"không đủ: 不够好 [búgòu hǎo] không đủ tốt."},{"id":229,"char":"夠了","hanViet":"cấu liễu","pinyin":"gòule","meaning":"đủ rồi."},{"id":230,"char":"局面","hanViet":"cục diện","pinyin":"júmiàn","meaning":"tình hình chung trong một thời gian cụ thể nào đó."},{"id":231,"char":"時局","hanViet":"thời cục","pinyin":"shíjú","meaning":"tình hình xã hội, chính trị trong một thời gian nào đó."},{"id":232,"char":"最少","hanViet":"tối thiểu","pinyin":"zuìshǎo","meaning":"ít nhất"},{"id":233,"char":"少年","hanViet":"thiếu niên","pinyin":"shàonián","meaning":"tuổi trẻ"},{"id":234,"char":"少女","hanViet":"thiếu nữ","pinyin":"shàonǚ","meaning":"cô gái còn trẻ"},{"id":235,"char":"尖頭","hanViet":"tiêm đầu","pinyin":"jiāntóu","meaning":"đầu nhọn, mũi nhọn."},{"id":236,"char":"你們","hanViet":"nhĩ môn","pinyin":"nǐmen","meaning":"các bạn"},{"id":237,"char":"您好","hanViet":"nâm hảo","pinyin":"nínhǎo","meaning":"chào ngài, chào bạn (lịch sự)"},{"id":238,"char":"外語","hanViet":"ngoại ngữ","pinyin":"wàiyǔ","meaning":"tiếng nước ngoài"},{"id":239,"char":"外語水平","hanViet":"","pinyin":"wàiyǔ shuǐpíng","meaning":"trình độ ngoại ngữ"},{"id":240,"char":"外面","hanViet":"ngoại diện","pinyin":"wàimiàn","meaning":"bên ngoài:"},{"id":241,"char":"外面下雨了","hanViet":"","pinyin":"wàimiàn xià yǔle","meaning":"ngoài trời đang mưa"},{"id":242,"char":"占星","hanViet":"chiêm tinh","pinyin":"zhānxīng","meaning":"xem sao mà đoán vận mệnh"},{"id":243,"char":"佔有","hanViet":"chiếm hữu","pinyin":"zhànyǒu","meaning":"hành động nắm giữ, kiểm soát hoặc sở hữu một thứ gì đó"},{"id":244,"char":"佔用","hanViet":"chiếm dụng","pinyin":"zhànyòng","meaning":"chiếm lấy, tranh thủ, dùng."},{"id":245,"char":"商店","hanViet":"thương điếm","pinyin":"shāngdiàn","meaning":"hiệu buôn, cửa hàng"},{"id":246,"char":"書店","hanViet":"thư điếm","pinyin":"shūdiàn","meaning":"tiệm sách"},{"id":247,"char":"起床","hanViet":"khởi sàng","pinyin":"qǐchuáng","meaning":"thức dậy: 你每天几点起床 /nǐ měitiān jǐ diǎn qǐchuáng/ hàng ngày bạn thức dậy lúc mấy giờ"},{"id":248,"char":"牛肉","hanViet":"ngưu nhục","pinyin":"niúròu","meaning":"thịt bò"},{"id":249,"char":"水牛","hanViet":"thủy ngưu","pinyin":"shuǐniú","meaning":"con trâu"},{"id":250,"char":"告示","hanViet":"cáo thị","pinyin":"gàoshì","meaning":"thông báo, báo cho biết."},{"id":251,"char":"告訴","hanViet":"cáo tố","pinyin":"gàosù","meaning":"nói, bảo, báo cho, kiện lên"},{"id":252,"char":"浩大","hanViet":"hạo đại","pinyin":"hàodà","meaning":"lớn, to lớn (khí thế, quy mô)"},{"id":253,"char":"浩氣","hanViet":"hạo khí","pinyin":"hàoqì","meaning":"khí thế mạnh mẽ, chí khí lớn lao"},{"id":254,"char":"文件","hanViet":"văn kiện","pinyin":"wénjiàn","meaning":"văn bản quan trọng"},{"id":255,"char":"勿忘我","hanViet":"","pinyin":"wù wàngwǒ","meaning":"đừng quên tôi."},{"id":256,"char":"物品","hanViet":"vật phẩm","pinyin":"wùpǐn","meaning":"vật, món đồ"},{"id":257,"char":"生物","hanViet":"sinh vật","pinyin":"shēngwù","meaning":"chỉ chung những vật có sự sống"},{"id":258,"char":"半天","hanViet":"bán thiên","pinyin":"bàntiān","meaning":"nửa ngày, lâu:"},{"id":259,"char":"半月","hanViet":"bán nguyệt","pinyin":"bànyuè","meaning":"nửa tháng"},{"id":260,"char":"半成品","hanViet":"bán thành phẩm","pinyin":"bànchéngpǐn","meaning":"sản phẩm chỉ mới hoàn thành một công đoạn chế biến nhất định nào đó"},{"id":261,"char":"判定","hanViet":"phán định","pinyin":"pàndìng","meaning":"quyết định"},{"id":262,"char":"批判","hanViet":"phê phán","pinyin":"pīpàn","meaning":"đưa ra phê bình, bình luận, có ý của sự bác bỏ ý kiến hay tư tưởng nào đó."},{"id":263,"char":"談判","hanViet":"đàm phán","pinyin":"tánpàn","meaning":"nói chuyện để giải quyết việc chung"},{"id":264,"char":"伙伴","hanViet":"hỏa bạn","pinyin":"huǒbàn","meaning":"bạn bè: 伙伴关系 [huǒbàn guānxì] quan hệ bạn bè"},{"id":265,"char":"結伴","hanViet":"kết bạn","pinyin":"jiébàn","meaning":"đi lại với nhau"},{"id":266,"char":"攪拌","hanViet":"giảo bạn","pinyin":"jiǎobàn","meaning":"quấy, trộn, khuấy: 搅拌机 [jiǎobànjī] máy trộn bê-tông, máy trộn vữa"},{"id":267,"char":"肥胖","hanViet":"phì bàn","pinyin":"féipàng","meaning":"béo, mập."},{"id":268,"char":"分手","hanViet":"phân thủ","pinyin":"fēnshǒu","meaning":"chia tay:"},{"id":269,"char":"分工","hanViet":"phân công","pinyin":"fēngōng","meaning":"chia việc ra"},{"id":270,"char":"成分","hanViet":"thành phần","pinyin":"chéngfèn","meaning":"chỉ những phần nhỏ, làm nên sự vật"},{"id":271,"char":"股份","hanViet":"cổ phần","pinyin":"gǔfèn","meaning":"股份公司 [gǔfèn gōngsī] công ty cổ phần"},{"id":272,"char":"份子","hanViet":"phần tử","pinyin":"fènzi","meaning":"suất, phần (đóng góp để tặng quà chung)"},{"id":273,"char":"紛紜","hanViet":"phân vân","pinyin":"fēnyún","meaning":"rối ren"},{"id":274,"char":"紛爭","hanViet":"phân tranh","pinyin":"fēnzhēng","meaning":"tranh chấp"},{"id":275,"char":"花粉","hanViet":"hoa phấn","pinyin":"huāfěn","meaning":"phấn hoa"},{"id":276,"char":"米粉","hanViet":"mễ phấn","pinyin":"mǐfěn","meaning":"bánh phở, bún"},{"id":277,"char":"貧士","hanViet":"bần sĩ","pinyin":"pínshì","meaning":"người nghèo"},{"id":278,"char":"貧苦","hanViet":"bần khổ","pinyin":"pínkǔ","meaning":"nghèo khó: 家境贫苦 gia cảnh nghèo khó."},{"id":279,"char":"打扮","hanViet":"đả ban","pinyin":"dǎban","meaning":"trang điểm, ăn diện."},{"id":280,"char":"山羊","hanViet":"sơn dương","pinyin":"shānyáng","meaning":"dê núi: 山羊和小牛 dê và bê"},{"id":281,"char":"羊肉","hanViet":"dương nhục","pinyin":"yángròu","meaning":"thịt cừu: 山羊肉/shānyángròu/ thịt dê."},{"id":282,"char":"吉祥","hanViet":"cát tường","pinyin":"jíxiáng","meaning":"tốt lành: 吉祥物 [jíxiángwù] linh vật, vật biểu tượng"},{"id":283,"char":"吉利","hanViet":"cát lợi","pinyin":"jílì","meaning":"may mắn; thuận lợi"},{"id":284,"char":"詳述","hanViet":"tường thuật","pinyin":"xiángshù","meaning":"trình bày đầy đủ"},{"id":285,"char":"大洋","hanViet":"đại dương","pinyin":"dàyáng","meaning":"biển lớn"},{"id":286,"char":"海洋","hanViet":"hải dương","pinyin":"hǎiyáng","meaning":"biển nói chung"},{"id":287,"char":"太平洋","hanViet":"Thái Bình dương","pinyin":"tàipíngyáng","meaning":"biển Thái Bình"},{"id":288,"char":"美女","hanViet":"mĩ nữ","pinyin":"měinǚ","meaning":"con gái đẹp"},{"id":289,"char":"美好","hanViet":"mỹ hảo","pinyin":"měihǎo","meaning":"tốt đẹp: 美好的未來 tương lai tốt đẹp."},{"id":290,"char":"美味","hanViet":"mĩ vị","pinyin":"měiwèi","meaning":"món ăn ngon"},{"id":291,"char":"化石","hanViet":"hóa thạch","pinyin":"huàshí","meaning":"hoá đá: 动物化石 [dòngwù huàshí] hoá thạch động vật"},{"id":292,"char":"文化","hanViet":"văn hóa","pinyin":"wénhuà","meaning":"thành quả chung của quá trình phát triển, sáng tạo của loài người trong lịch sử"},{"id":293,"char":"花店","hanViet":"hoa điếm","pinyin":"huādiàn","meaning":"cửa hàng hoa"},{"id":294,"char":"行貨","hanViet":"hàng hoá","pinyin":"hánghuò","meaning":"thứ được bày ra để bán"},{"id":295,"char":"正品行貨","hanViet":"","pinyin":"zhèngpǐn hánghuò","meaning":"sản phẩm chính hãng"},{"id":296,"char":"貨店","hanViet":"hóa điếm","pinyin":"huòdiàn","meaning":"cửa hàng."},{"id":297,"char":"尼姑","hanViet":"ni cô","pinyin":"nígū","meaning":"sư nữ"},{"id":298,"char":"你呢","hanViet":"nhĩ ni","pinyin":"nǐne","meaning":"bạn thì sao."},{"id":299,"char":"比如","hanViet":"tỉ như","pinyin":"bǐrú","meaning":"ví dụ như"},{"id":300,"char":"比重","hanViet":"tỉ trọng","pinyin":"bǐzhòng","meaning":"sức nặng của một vật so với sức nặng của nước, khi cùng một thể tích"},{"id":301,"char":"批評","hanViet":"phê bình","pinyin":"pīpíng","meaning":"góp ý kiến, chỉ ra những thiếu sót, khuyết điểm: 文学批评 [wénxué pīpíng] phê bình văn học."},{"id":302,"char":"北方","hanViet":"bắc phương","pinyin":"běifāng","meaning":"phương bắc."},{"id":303,"char":"北京","hanViet":"Bắc Kinh","pinyin":"běijīng","meaning":"thủ đô của Trung Quốc"}],
+                // "Hán Tự (304-423)":[{"id":304,"char":"北江","hanViet":"Bắc Giang","pinyin":"běijiāng","meaning":"北江省 [běijiāng shěng] Tỉnh Bắc Giang"},{"id":305,"char":"背景","hanViet":"bối cảnh","pinyin":"bèijǐng","meaning":"cảnh vật làm nền"},{"id":306,"char":"背約","hanViet":"bội ước","pinyin":"bèiyuē","meaning":"làm trái lời hứa"},{"id":307,"char":"文字","hanViet":"văn tự","pinyin":"wénzì","meaning":"chữ viết"},{"id":308,"char":"文明","hanViet":"văn minh","pinyin":"wénmíng","meaning":"đẹp đẽ sáng sủa, chỉ xã hội tiến bộ"},{"id":309,"char":"中文","hanViet":"Trung văn","pinyin":"zhōngwén","meaning":"tiếng Trung Quốc"},{"id":310,"char":"紋石","hanViet":"văn thạch","pinyin":"wénshí","meaning":"đá vân, vân sọc trên đá"},{"id":311,"char":"指紋","hanViet":"chỉ vân","pinyin":"zhǐwén","meaning":"vân tay"},{"id":312,"char":"父兄","hanViet":"phụ huynh","pinyin":"fùxiōng","meaning":"cha và anh (chỉ người lớn trong nhà)"},{"id":313,"char":"父母","hanViet":"phụ mẫu","pinyin":"fùmǔ","meaning":"bố mẹ"},{"id":314,"char":"刀斧","hanViet":"đao phủ","pinyin":"dāofǔ","meaning":"dao và búa, đồ nghề của người đồ tể"},{"id":315,"char":"交好","hanViet":"giao hảo","pinyin":"jiāohǎo","meaning":"qua lại thân thiết với nhau"},{"id":316,"char":"交易","hanViet":"giao dịch","pinyin":"jiāoyì","meaning":"mua bán đổi chác với nhau"},{"id":317,"char":"學校","hanViet":"học hiệu","pinyin":"xuéxiào","meaning":"trường học."},{"id":318,"char":"校長","hanViet":"hiệu trưởng","pinyin":"xiàozhǎng","meaning":""},{"id":319,"char":"校訂","hanViet":"hiệu đính","pinyin":"jiàodìng","meaning":"sửa chữa"},{"id":320,"char":"印信","hanViet":"ấn tín","pinyin":"yìnxìn","meaning":"chỉ chung các loại ấn chương"},{"id":321,"char":"印行","hanViet":"ấn hành","pinyin":"yìnxíng","meaning":"in ấn và phát hành"},{"id":322,"char":"印本","hanViet":"ấn bản","pinyin":"yìnběn","meaning":"sách in"},{"id":323,"char":"巴不得","hanViet":"ước gì","pinyin":"bābùdé","meaning":"chỉ mong sao"},{"id":324,"char":"把握","hanViet":"bả ác","pinyin":"bǎwò","meaning":"cầm chắc (vật), nắm bắt (sự việc), chắc chắn."},{"id":325,"char":"好吧","hanViet":"hảo ba","pinyin":"hǎoba","meaning":"được."},{"id":326,"char":"快走吧","hanViet":"","pinyin":"kuài zǒu ba","meaning":"đi nhanh lên."},{"id":327,"char":"爸爸","hanViet":"bả bả","pinyin":"bàba","meaning":"bố, cha, ba"},{"id":328,"char":"肥胖","hanViet":"phì bàn","pinyin":"féipàng","meaning":"mập mạp"},{"id":329,"char":"肥肉","hanViet":"phì nhục","pinyin":"féiròu","meaning":"thịt mỡ"},{"id":330,"char":"紅色","hanViet":"hồng sắc","pinyin":"hóngsè","meaning":"màu đỏ"},{"id":331,"char":"本色","hanViet":"bản sắc","pinyin":"běnsè","meaning":"màu sắc tự nhiên, đặc tính vốn có"},{"id":332,"char":"好色","hanViet":"hiếu sắc","pinyin":"hàosè","meaning":"ham thích sắc đẹp"},{"id":333,"char":"絕交","hanViet":"tuyệt giao","pinyin":"juéjiāo","meaning":"cắt đứt mối quan hệ:"},{"id":334,"char":"絕色","hanViet":"tuyệt sắc","pinyin":"juésè","meaning":"đẹp tuyệt trần"},{"id":335,"char":"采邑","hanViet":"thái ấp","pinyin":"cǎiyì","meaning":"đất vua cấp cho quan để hưởng hoa lợi."},{"id":336,"char":"城邑","hanViet":"thành ấp","pinyin":"chéngyì","meaning":"thành phố."},{"id":337,"char":"千古","hanViet":"thiên cổ","pinyin":"qiāngǔ","meaning":"nghìn xưa"},{"id":338,"char":"千秋","hanViet":"thiên thu","pinyin":"qiānqiū","meaning":"nghìn thu"},{"id":339,"char":"火舌","hanViet":"hỏa thiệt","pinyin":"huǒshé","meaning":"ngọn lửa"},{"id":340,"char":"生活","hanViet":"sinh hoạt","pinyin":"shēnghuó","meaning":"đời sống, cuộc sống."},{"id":341,"char":"談話","hanViet":"đàm thoại","pinyin":"tánhuà","meaning":"nói chuyện"},{"id":342,"char":"會話","hanViet":"hội thoại","pinyin":"huìhuà","meaning":"nói chuyện"},{"id":343,"char":"五味","hanViet":"ngũ vị","pinyin":"wǔwèi","meaning":"năm vị (chỉ các vị ngọt, chua, cay, đắng, mặn)"},{"id":344,"char":"五金","hanViet":"ngũ kim","pinyin":"wǔjīn","meaning":"5 loài kim loại, chỉ chung cho kim loại."},{"id":345,"char":"吾人","hanViet":"ngô nhân","pinyin":"wúrén","meaning":"chúng ta"},{"id":346,"char":"悟道","hanViet":"ngộ đạo","pinyin":"wùdào","meaning":"hiểu đạo lý"},{"id":347,"char":"悟性","hanViet":"ngộ tính","pinyin":"wùxìng","meaning":"nhận thức, khả năng lĩnh hội"},{"id":348,"char":"語氣","hanViet":"ngữ khí","pinyin":"yǔqì","meaning":"giọng điệu"},{"id":349,"char":"語法","hanViet":"ngữ pháp","pinyin":"yǔfǎ","meaning":"phương pháp cấu tạo nên cấu trúc của câu nói"},{"id":350,"char":"成立","hanViet":"thành lập","pinyin":"chénglì","meaning":"lập ra (tổ chức, cơ cấu...)"},{"id":351,"char":"自立","hanViet":"tự lập","pinyin":"zìlì","meaning":"tự mình gây dựng cho chính mình, không nhờ ai"},{"id":352,"char":"名位","hanViet":"danh vị","pinyin":"míngwèi","meaning":"thanh danh và địa vị"},{"id":353,"char":"在位","hanViet":"tại vị","pinyin":"zàiwèi","meaning":"đang trị vì, giữ ngôi vua"},{"id":354,"char":"母語","hanViet":"mẫu ngữ","pinyin":"mǔyǔ","meaning":"tiếng mẹ đẻ"},{"id":355,"char":"母親","hanViet":"mẫu thân","pinyin":"mǔqīn","meaning":"mẹ"},{"id":356,"char":"母妄言","hanViet":"","pinyin":"wú wàngyán","meaning":"đừng nói xằng"},{"id":357,"char":"每日","hanViet":"mỗi nhật","pinyin":"měirì","meaning":"mỗi ngày"},{"id":358,"char":"每天","hanViet":"mỗi thiên","pinyin":"měitiān","meaning":"mỗi ngày"},{"id":359,"char":"後悔","hanViet":"hậu hối","pinyin":"hòuhuǐ","meaning":"hối hận"},{"id":360,"char":"悔改","hanViet":"hối cải","pinyin":"huǐgǎi","meaning":"sửa đổi lỗi lầm."},{"id":361,"char":"海洋","hanViet":"hải dương","pinyin":"hǎiyáng","meaning":"biển"},{"id":362,"char":"海外","hanViet":"hải ngoại","pinyin":"hǎiwài","meaning":"ở nước ngoài"},{"id":363,"char":"苦海","hanViet":"khổ hải","pinyin":"kǔhǎi","meaning":"bể khổ"},{"id":364,"char":"安全","hanViet":"an toàn","pinyin":"ānquán","meaning":"yên ổn trọn vẹn, không có nguy hiểm gì cả."},{"id":365,"char":"公安","hanViet":"công an","pinyin":"gōngān","meaning":"giữ gìn an ninh trật tự chung."},{"id":366,"char":"按摩","hanViet":"án ma","pinyin":"ànmó","meaning":"xoa bóp, mátxa"},{"id":367,"char":"按時","hanViet":"án thời","pinyin":"ànshí","meaning":"đúng hạn"},{"id":368,"char":"按兵不動","hanViet":"án binh bất động","pinyin":"ànbīngbúdòng","meaning":"không có động tĩnh"},{"id":369,"char":"案子","hanViet":"án tử","pinyin":"ànzi","meaning":"cái bàn:一張桌子 một cái bàn"},{"id":370,"char":"香案","hanViet":"hương án","pinyin":"xiāng'àn","meaning":"bàn để hương khói, thờ cúng"},{"id":371,"char":"奴才","hanViet":"nô tài","pinyin":"núcái","meaning":"đày tớ, nô bộc"},{"id":372,"char":"奴婢","hanViet":"nô tì","pinyin":"núbì","meaning":"đứa ở gái"},{"id":373,"char":"怒氣","hanViet":"nộ khí","pinyin":"nùqì","meaning":"cơn giận dữ"},{"id":374,"char":"努力","hanViet":"nỗ lực","pinyin":"nǔlì","meaning":"gắng sức: 努力學習 [nǔlì xuéxí] nỗ lực học tập."},{"id":375,"char":"如果","hanViet":"như quả","pinyin":"rúguǒ","meaning":"nếu như"},{"id":376,"char":"比如","hanViet":"tỷ như","pinyin":"bǐrú","meaning":"ví dụ như"},{"id":377,"char":"容恕","hanViet":"dung thứ","pinyin":"róngshù","meaning":"bao dung."},{"id":378,"char":"回家","hanViet":"hồi gia","pinyin":"huíjiā","meaning":"về nhà."},{"id":379,"char":"家事","hanViet":"gia sự","pinyin":"jiāshì","meaning":"việc nhà"},{"id":380,"char":"出嫁","hanViet":"xuất giá","pinyin":"chūjià","meaning":"đi lấy chồng"},{"id":381,"char":"再嫁","hanViet":"tái giá","pinyin":"zàijià","meaning":"kết hôn lần nữa"},{"id":382,"char":"安坐","hanViet":"an toạ","pinyin":"ānzuò","meaning":"ngồi yên ổn."},{"id":383,"char":"坐車","hanViet":"tọa xa","pinyin":"zuòchē","meaning":"đi xe"},{"id":384,"char":"座次","hanViet":"tọa thứ","pinyin":"zuòcì","meaning":"thứ tự chỗ ngồi"},{"id":385,"char":"星座","hanViet":"tinh tọa","pinyin":"xīngzuò","meaning":"chòm sao."},{"id":386,"char":"挫折","hanViet":"tỏa chiết","pinyin":"cuòzhé","meaning":"chèn ép, cản trở, vấp ngã, thua thiệt."},{"id":387,"char":"春天","hanViet":"xuân thiên","pinyin":"chūntiān","meaning":"mùa xuân"},{"id":388,"char":"青春","hanViet":"thanh xuân","pinyin":"qīngchūn","meaning":"tuổi trẻ"},{"id":389,"char":"生活","hanViet":"sinh hoạt","pinyin":"shēnghuó","meaning":"cuộc sống."},{"id":390,"char":"生存","hanViet":"sinh tồn","pinyin":"shēngcún","meaning":"sinh sống"},{"id":391,"char":"生病","hanViet":"sinh bệnh","pinyin":"shēngbìng","meaning":"bị ốm."},{"id":392,"char":"行星","hanViet":"hành tinh","pinyin":"xíngxīng","meaning":"sao đi."},{"id":393,"char":"明星","hanViet":"minh tinh","pinyin":"míngxīng","meaning":"ngôi sao sáng màn bạc."},{"id":394,"char":"星期","hanViet":"tinh kỳ","pinyin":"xīngqī","meaning":"tuần lễ, ngày trong tuần."},{"id":395,"char":"星期日","hanViet":"","pinyin":"xīngqīrì","meaning":"ngày chủ nhật"},{"id":396,"char":"星期三","hanViet":"","pinyin":"xīngqīsān","meaning":"thứ tư"},{"id":397,"char":"今天星期几","hanViet":"","pinyin":"jīntiān xīngqī jǐ","meaning":"hôm nay thứ mấy?"},{"id":398,"char":"本性","hanViet":"bản tính","pinyin":"běnxìng","meaning":"cá tính vốn có."},{"id":399,"char":"男性","hanViet":"nam tính","pinyin":"nánxìng","meaning":"phái nam."},{"id":400,"char":"性格","hanViet":"tính cách","pinyin":"xìnggé","meaning":"tính tình"},{"id":401,"char":"姓名","hanViet":"tính danh","pinyin":"xìngmíng","meaning":"họ và tên."},{"id":402,"char":"貴姓","hanViet":"quý tính","pinyin":"guìxìng","meaning":"quý danh: 你貴姓 [nǐ guìxìng] anh họ gì?"},{"id":403,"char":"百姓","hanViet":"bách tính","pinyin":"bǎixìng","meaning":"nhân dân, trăm họ"},{"id":404,"char":"旦夕","hanViet":"đán tịch","pinyin":"dànxī","meaning":"sớm tối, sớm chiều."},{"id":405,"char":"元旦","hanViet":"nguyên đán","pinyin":"yuándàn","meaning":"ngày đầu năm."},{"id":406,"char":"不但","hanViet":"bất đãn","pinyin":"búdàn","meaning":"không những"},{"id":407,"char":"但是","hanViet":"đãn thị","pinyin":"dànshì","meaning":"nhưng, tuy nhiên:"},{"id":408,"char":"平坦","hanViet":"bình thản","pinyin":"píngtǎn","meaning":"bằng phẳng"},{"id":409,"char":"坦然","hanViet":"thản nhiên","pinyin":"tǎnrán","meaning":"bình tĩnh, điềm tĩnh, không lo sợ."},{"id":410,"char":"早已","hanViet":"tảo dĩ","pinyin":"zǎoyǐ","meaning":"từ lâu: 我早已準備好了 [wǒ zǎoyǐ zhǔnbèi hǎole] tôi đã chuẩn bị từ lâu"},{"id":411,"char":"早日","hanViet":"tảo nhật","pinyin":"zǎorì","meaning":"sớm: 望你早日回來 [wàng nǐ zǎorì huílái] mong anh sớm quay về."},{"id":412,"char":"草木","hanViet":"thảo mộc","pinyin":"cǎomù","meaning":"cỏ cây."},{"id":413,"char":"支店","hanViet":"chỉ điếm","pinyin":"zhīdiàn","meaning":"chi nhánh, cửa hàng chi nhánh"},{"id":414,"char":"支出","hanViet":"chỉ xuất","pinyin":"zhīchū","meaning":"chỉ ra"},{"id":415,"char":"枝丫","hanViet":"chi nha","pinyin":"zhīyā","meaning":"chạc cây."},{"id":416,"char":"四肢","hanViet":"tứ chi","pinyin":"sìzhī","meaning":"4 chi (2 tay 2 chân của người)."},{"id":417,"char":"技術","hanViet":"kĩ thuật","pinyin":"jìshù","meaning":"技術员 [jìshùyuán] kỹ thuật viên"},{"id":418,"char":"自在","hanViet":"tự tại","pinyin":"zìzài","meaning":"tự do, thoải mái"},{"id":419,"char":"自立","hanViet":"tự lập","pinyin":"zìlì","meaning":"dựa vào chính mình, không nhờ cậy ai"},{"id":420,"char":"休息","hanViet":"hưu tức","pinyin":"xiūxi","meaning":"nghỉ ngơi"},{"id":421,"char":"子息","hanViet":"tử tức","pinyin":"zǐxī","meaning":"con cái"},{"id":422,"char":"利息","hanViet":"lợi tức","pinyin":"lìxī","meaning":"tiền lời"},{"id":423,"char":"咱們","hanViet":"cha môn","pinyin":"zánmen","meaning":"chúng ta (gồm cả người nói và người nghe)."}],
+                // "Hán Tự (158-247)": [{"id": 158, "char": "件", "hanViet": "Kiện", "pinyin": "jiàn", "meaning": "Đồ vật, khí cụ, vật phẩm, việc, món đồ, lượng từ."}, {"id": 159, "char": "勿", "hanViet": "Vật", "pinyin": "wù", "meaning": "Chớ, đừng, không nên, sự ngăn cấm, không được phép."}, {"id": 160, "char": "物", "hanViet": "Vật", "pinyin": "wù", "meaning": "Vật, vạn vật, những thứ có trong trời đất, thế gian."}, {"id": 161, "char": "半", "hanViet": "Bán", "pinyin": "bàn", "meaning": "Nửa, rưỡi, khoảng giữa, chia."}, {"id": 162, "char": "判", "hanViet": "Phán", "pinyin": "pàn", "meaning": "Chia ra, phân chia, phân biệt rõ ràng, xét xử."}, {"id": 163, "char": "伴", "hanViet": "Bạn", "pinyin": "bàn", "meaning": "Nửa kia của mình, bạn bè, người bạn đời."}, {"id": 164, "char": "拌", "hanViet": "Bạn", "pinyin": "bàn", "meaning": "Trộn, pha lẫn, hòa lẫn, khuấy đều."}, {"id": 165, "char": "胖", "hanViet": "Bàn", "pinyin": "pàng", "meaning": "Béo, mập, tinh thần thoải mái, vui vẻ."}, {"id": 166, "char": "分", "hanViet": "Phân", "pinyin": "fēn, fèn", "meaning": "Chia, phân chia (fēn); Thành phần, vai trò, địa vị (fèn)."}, {"id": 167, "char": "份", "hanViet": "Phần", "pinyin": "fèn", "meaning": "Phần, suất, cái được chia cho từng người, sự tách biệt."}, {"id": 168, "char": "紛", "hanViet": "Phân", "pinyin": "fēn", "meaning": "Hỗn loạn, lộn xộn, rối bời, tranh chấp."}, {"id": 169, "char": "粉", "hanViet": "Phấn", "pinyin": "fěn", "meaning": "Bột, bụi, vỡ nát, phấn trang điểm."}, {"id": 170, "char": "貧", "hanViet": "Bần", "pinyin": "pín", "meaning": "Nghèo, túng thiếu, thiếu thốn tiền bạc."}, {"id": 171, "char": "扮", "hanViet": "Ban", "pinyin": "bàn", "meaning": "Trang điểm, vào vai, đóng vai, sắm vai."}, {"id": 172, "char": "羊", "hanViet": "Dương", "pinyin": "yáng", "meaning": "Con cừu, con dê, biểu tượng của sự tốt lành, thiện."}, {"id": 173, "char": "祥", "hanViet": "Tường", "pinyin": "xiáng", "meaning": "Tốt lành, điềm lành, may mắn."}, {"id": 174, "char": "詳", "hanViet": "Tường", "pinyin": "xiáng", "meaning": "Rõ ràng, đầy đủ, kỹ càng, tỉ mỉ, chi tiết."}, {"id": 175, "char": "洋", "hanViet": "Dương", "pinyin": "yáng", "meaning": "Biển, đại dương, vùng nước xa bờ, mênh mông, nước ngoài."}, {"id": 176, "char": "美", "hanViet": "Mỹ", "pinyin": "měi", "meaning": "Đẹp, tốt đẹp, hoàn hảo, hay, ngon, vẻ đẹp toàn diện."},{"id": 177, "char": "匕", "hanViet": "Chủy", "pinyin": "bǐ", "meaning": "Người (đang khom lưng), cái thìa."}, {"id": 178, "char": "化", "hanViet": "Hóa", "pinyin": "huà", "meaning": "Thay đổi, chuyển biến, biến đổi, loại bỏ, tạo hóa."}, {"id": 179, "char": "花", "hanViet": "Hoa", "pinyin": "huā", "meaning": "Hoa của cây cỏ, bông hoa, những thứ giống như hoa."}, {"id": 180, "char": "貨", "hanViet": "Hóa", "pinyin": "huò", "meaning": "Hàng hóa, thứ bày bán, tiền, vật trao đổi."}, {"id": 181, "char": "尼", "hanViet": "Ni", "pinyin": "ní", "meaning": "Sư nữ, người nữ đi tu, người xuất gia."}, {"id": 182, "char": "呢", "hanViet": "Ni", "pinyin": "ne, ní", "meaning": "Từ để hỏi (nhẹ nhàng), đồ len dạ, mềm mại."}, {"id": 183, "char": "比", "hanViet": "Tỉ", "pinyin": "bǐ", "meaning": "So sánh, sự lựa chọn, tỷ lệ."}, {"id": 184, "char": "批", "hanViet": "Phê", "pinyin": "pī", "meaning": "Đánh giá, cho ý kiến, phê bình, phê chuẩn, phân tích."}, {"id": 185, "char": "北", "hanViet": "Bắc", "pinyin": "běi", "meaning": "Phía Bắc, thua trận, đối nghịch, quay lưng."}, {"id": 186, "char": "背", "hanViet": "Bối, Bội", "pinyin": "bēi, bèi", "meaning": "Cái lưng, mặt sau, làm trái ngược lại, phản bội."}, {"id": 187, "char": "文", "hanViet": "Văn", "pinyin": "wén", "meaning": "Hình vẽ, hình xăm, chữ viết, ngôn ngữ, văn hóa, văn minh."}, {"id": 188, "char": "紋", "hanViet": "Văn", "pinyin": "wén", "meaning": "Hoa văn, đường nét trên bề mặt vật thể."}, {"id": 189, "char": "父", "hanViet": "Phụ", "pinyin": "fù", "meaning": "Cha, bố, người đàn ông lao động chính trong gia đình."}, {"id": 190, "char": "斧", "hanViet": "Phủ", "pinyin": "fǔ", "meaning": "Cái rìu, công cụ làm việc của đàn ông."}, {"id": 191, "char": "交", "hanViet": "Giao", "pinyin": "jiāo", "meaning": "Qua lại, trao đổi, kết hợp, tương tác, nộp, kết bạn."}, {"id": 192, "char": "校", "hanViet": "Hiệu", "pinyin": "xiào, jiào", "meaning": "Trường học, sửa chữa, đính chính, chức quan."}, {"id": 193, "char": "卩", "hanViet": "Tiết", "pinyin": "jié", "meaning": "Người quỳ gối, thuần phục, phục tùng, thực hiện nghi lễ."},{"id": 194, "char": "印", "hanViet": "Ấn", "pinyin": "yìn", "meaning": "Con dấu, in, nhấn xuống, tạo dấu vết, phát hành."}, {"id": 195, "char": "巴", "hanViet": "Ba", "pinyin": "bā", "meaning": "Mong chờ, kỳ vọng, bò, leo, trèo, bám chặt."}, {"id": 196, "char": "把", "hanViet": "Bả", "pinyin": "bǎ", "meaning": "Cầm, nắm chắc, dùng tay để thực hiện, cấu trúc ngữ pháp."}, {"id": 197, "char": "吧", "hanViet": "Ba", "pinyin": "ba", "meaning": "Trợ từ biểu thị sự thỉnh cầu, sai khiến, thúc giục (nhé, nhỉ)."}, {"id": 198, "char": "爸", "hanViet": "Ba", "pinyin": "bà", "meaning": "Ba, cha, bố (cách gọi thân mật)."}, {"id": 199, "char": "肥", "hanViet": "Phì", "pinyin": "féi", "meaning": "Béo, mập, đầy đủ, sung túc, màu mỡ."}, {"id": 200, "char": "色", "hanViet": "Sắc", "pinyin": "sè", "meaning": "Sắc dục, ham muốn, vẻ đẹp, nhan sắc, màu sắc, cảnh sắc."}, {"id": 201, "char": "絕", "hanViet": "Tuyệt", "pinyin": "jué", "meaning": "Cắt đứt, chấm dứt, cự tuyệt, cực kỳ, hết sức."}, {"id": 202, "char": "邑", "hanViet": "Ấp", "pinyin": "yì", "meaning": "Đất vua ban, khu dân cư, đơn vị hành chính."}, {"id": 203, "char": "阜", "hanViet": "Phụ", "pinyin": "fù", "meaning": "Đồi núi, địa hình."}, {"id": 204, "char": "千", "hanViet": "Thiên", "pinyin": "qiān", "meaning": "Nghìn, số lượng lớn, nhất mực, tuyệt đối."}, {"id": 205, "char": "舌", "hanViet": "Thiệt", "pinyin": "shé", "meaning": "Cái lưỡi, sự cảm nhận, cảm giác."}, {"id": 206, "char": "活", "hanViet": "Hoạt", "pinyin": "huó", "meaning": "Sống, còn sống, hoạt động, dịch chuyển, linh động."}, {"id": 207, "char": "話", "hanViet": "Thoại", "pinyin": "huà", "meaning": "Nói chuyện, lời nói, trao đổi thông tin."}, {"id": 208, "char": "五", "hanViet": "Ngũ", "pinyin": "wǔ", "meaning": "Số 5, ở giữa, sự giao hòa, toàn vẹn."}, {"id": 209, "char": "吾", "hanViet": "Ngô", "pinyin": "wú", "meaning": "Tôi, ta, bản thân, tự nhận thức về bản thân."}, {"id": 210, "char": "悟", "hanViet": "Ngộ", "pinyin": "wù", "meaning": "Hiểu ra, giác ngộ, nhận ra bản chất vấn đề."}, {"id": 211, "char": "語", "hanViet": "Ngữ", "pinyin": "yǔ", "meaning": "Ngôn ngữ, lời nói để hiểu nhau, phương thức biểu đạt."},{"id": 212, "char": "立", "hanViet": "Lập", "pinyin": "lì", "meaning": "Đứng, dựng nên, gây dựng lên, thiết lập, đặt ra."}, {"id": 213, "char": "位", "hanViet": "Vị", "pinyin": "wèi", "meaning": "Chỗ, vị trí, chỗ đứng, vai trò xã hội, cách gọi người với lòng kính trọng."}, {"id": 214, "char": "母", "hanViet": "Mẫu", "pinyin": "mǔ", "meaning": "Mẹ, người chăm sóc, tiền vốn/gốc, mẫu quốc."}, {"id": 215, "char": "毋", "hanViet": "Vô", "pinyin": "wú", "meaning": "Đừng, chớ, không nên, điều cần tránh làm trong một thời kỳ cụ thể."}, {"id": 216, "char": "每", "hanViet": "Mỗi", "pinyin": "měi", "meaning": "Mỗi lần, mỗi một, sự lặp lại, sự vất vả."}, {"id": 217, "char": "悔", "hanViet": "Hối", "pinyin": "huǐ", "meaning": "Hối hận, dằn vặt, hối tiếc, sửa đổi lỗi lầm."}, {"id": 218, "char": "海", "hanViet": "Hải", "pinyin": "hǎi", "meaning": "Biển, vùng nước rộng lớn, nơi trăm sông đổ về, bao la, rộng lớn."}, {"id": 219, "char": "安", "hanViet": "An", "pinyin": "ān", "meaning": "Yên ổn, yên tĩnh, an toàn, sắp xếp, hài hòa."}, {"id": 220, "char": "按", "hanViet": "Án", "pinyin": "àn", "meaning": "Bấm, nhấn, giữ, làm cho dừng lại, kìm nén."}, {"id": 221, "char": "案", "hanViet": "Án", "pinyin": "àn", "meaning": "Khay gỗ, bàn thấp, hồ sơ, tài liệu, vụ án, phương án."}, {"id": 222, "char": "奴", "hanViet": "Nô", "pinyin": "nú", "meaning": "Nô lệ, đầy tớ, người hầu."}, {"id": 223, "char": "怒", "hanViet": "Nộ", "pinyin": "nù", "meaning": "Giận dữ, cáu tức, thịnh nộ."}, {"id": 224, "char": "努", "hanViet": "Nỗ", "pinyin": "nǔ", "meaning": "Cố gắng, gắng sức, nỗ lực."}, {"id": 225, "char": "如", "hanViet": "Như", "pinyin": "rú", "meaning": "Theo như, y như, ví như, nếu như."}, {"id": 226, "char": "恕", "hanViet": "Thứ", "pinyin": "shù", "meaning": "Tha thứ, bao dung, rộng lòng tha lỗi."}, {"id": 227, "char": "豕", "hanViet": "Thỉ", "pinyin": "shǐ", "meaning": "Con lợn, con heo."}, {"id": 228, "char": "家", "hanViet": "Gia", "pinyin": "jiā", "meaning": "Nhà, gia đình, nơi ở, người làm nghề chuyên môn."}, {"id": 229, "char": "嫁", "hanViet": "Giá", "pinyin": "jià", "meaning": "Gả, con gái đi lấy chồng."}, {"id": 230, "char": "坐", "hanViet": "Tọa", "pinyin": "zuò", "meaning": "Ngồi, đi (bằng phương tiện), tọa."}, {"id": 231, "char": "座", "hanViet": "Tọa", "pinyin": "zuò", "meaning": "Chỗ ngồi, vị trí, cái đế, ngọn (núi)."}, {"id": 232, "char": "挫", "hanViet": "Tỏa", "pinyin": "cuò", "meaning": "Chế ngự bản thân, đánh bại, thất bại, cản trở, sụt giảm."}, {"id": 233, "char": "丰", "hanViet": "Phong", "pinyin": "fēng", "meaning": "Đầy đủ, sung túc, tươi tốt, được mùa, phong phú."}, {"id": 234, "char": "春", "hanViet": "Xuân", "pinyin": "chūn", "meaning": "Mùa xuân, tuổi trẻ."},{"id": 235, "char": "生", "hanViet": "Sinh", "pinyin": "shēng", "meaning": "Phát triển, lớn lên, cuộc sống, mới lạ, chưa chín."}, {"id": 236, "char": "星", "hanViet": "Tinh", "pinyin": "xīng", "meaning": "Sao, ngôi sao, thiên thể tự phát sáng, sự vật nổi tiếng, lấp lánh."}, {"id": 237, "char": "性", "hanViet": "Tính", "pinyin": "xìng", "meaning": "Tính cách, bản chất của sự vật, bẩm sinh, gắn liền với mạng sống (tính mệnh)."}, {"id": 238, "char": "姓", "hanViet": "Tính", "pinyin": "xìng", "meaning": "Họ, họ của người, theo họ mẹ, nhân dân."}, {"id": 239, "char": "旦", "hanViet": "Đán", "pinyin": "dàn", "meaning": "Sáng, buổi sáng, sáng sớm, khoảnh khắc đầu tiên trong ngày."}, {"id": 240, "char": "但", "hanViet": "Đãn", "pinyin": "dàn", "meaning": "Nhưng, tuy nhiên, chỉ sự thay đổi, chuyển biến."}, {"id": 241, "char": "坦", "hanViet": "Thản", "pinyin": "tǎn", "meaning": "Bình thản, điềm tĩnh, bằng phẳng, không lo sợ."}, {"id": 242, "char": "早", "hanViet": "Tảo", "pinyin": "zǎo", "meaning": "Buổi sáng, sớm, sớm hơn một mốc thời gian, đã từ lâu."}, {"id": 243, "char": "草", "hanViet": "Thảo", "pinyin": "cǎo", "meaning": "Cỏ, hoang dã, khó kiểm soát, lộn xộn, qua loa, sơ sài."}, {"id": 244, "char": "支", "hanViet": "Chi", "pinyin": "zhī", "meaning": "Nhánh, sự phân nhánh, điều khiển, chi tiêu, lượng từ cho vật hình trụ và dài."}, {"id": 245, "char": "枝", "hanViet": "Chi", "pinyin": "zhī", "meaning": "Cành cây, cành mọc ra từ thân cây, vụn vặt, chi tiết nhỏ."}, {"id": 246, "char": "肢", "hanViet": "Chi", "pinyin": "zhī", "meaning": "Chân tay, tứ chi, nhánh mọc ra từ cơ thể."}, {"id": 247, "char": "技", "hanViet": "Kỹ", "pinyin": "jì", "meaning": "Nghề, tài nghệ, tài khéo, khả năng thực hiện động tác nào đó."}]
+                "Hán Tự (ôn tập)":[{"id":37,"char":"表示","hanViet":"biểu thị","pinyin":"biǎoshì","meaning":"thể hiện ra, bộc lộ ra"},{"id":73,"char":"了解","hanViet":"liễu giải","pinyin":"liǎojiě","meaning":"hiểu rõ."},{"id":77,"char":"公共","hanViet":"công cộng","pinyin":"gōnggòng","meaning":"chung của mọi người"},{"id":78,"char":"公事","hanViet":"công sự","pinyin":"gōngshì","meaning":"việc chung."},{"id":82,"char":"相似","hanViet":"tương tự","pinyin":"xiāngsì","meaning":"giống như, giống nhau"},{"id":92,"char":"末世","hanViet":"mạt thế","pinyin":"mòshì","meaning":"cuối thời"},{"id":97,"char":"未來","hanViet":"未来 - vị lai","pinyin":"wèilái","meaning":"mai sau, tương lai, sau này."},{"id":101,"char":"迷昧","hanViet":"mê muội","pinyin":"mímèi","meaning":"mê muội, mơ hồ, thiếu hiểu biết."},{"id":104,"char":"休息","hanViet":"hưu tức","pinyin":"xiūxi","meaning":"nghỉ ngơi"},{"id":121,"char":"毛衣","hanViet":"mao y","pinyin":"máoyī","meaning":"áo len đan"},{"id":127,"char":"看病","hanViet":"khán bệnh","pinyin":"kànbìng","meaning":"xem bệnh, đi khám"},{"id":128,"char":"再見","hanViet":"再见 - tái kiến","pinyin":"zàijiàn","meaning":"chào tạm biệt, hẹn gặp lại"},{"id":133,"char":"材料","hanViet":"tài liệu","pinyin":"cáiliào","meaning":"vật liệu (vật có thể trực tiếp tạo ra thành phẩm), tư liệu"},{"id":139,"char":"找工作","hanViet":"trảo công tác","pinyin":"zhǎo gōngzuò","meaning":"tìm việc làm."},{"id":142,"char":"昇華","hanViet":"升华 - thăng hoa","pinyin":"shēnghuá","meaning":"bay hơi (chất rắn biến đổi trực tiếp thành khí mà không qua giai đoạn lỏng); ẩn dụ của những cái tinh túy được đề cao"},{"id":147,"char":"佐藥","hanViet":"佐药 - tá dược","pinyin":"zuǒyào","meaning":"chất thêm vào để chế dược phẩm."},{"id":163,"char":"夭折","hanViet":"yểu chiết","pinyin":"yāozhé","meaning":"chết trẻ, chết non"},{"id":166,"char":"尤其","hanViet":"vưu kỳ","pinyin":"yóuqí","meaning":"đặc biệt là"},{"id":169,"char":"丈夫","hanViet":"trượng phu","pinyin":"zhàngfu","meaning":"chỉ đàn ông, người chồng."},{"id":172,"char":"扶助","hanViet":"phù trợ","pinyin":"fúzhù","meaning":"giúp đỡ."},{"id":173,"char":"規定","hanViet":"规定 - quy định","pinyin":"guīdìng","meaning":"phép tắc đặt ra để mọi người noi theo"},{"id":174,"char":"規則","hanViet":"规则 - quy tắc","pinyin":"guīzé","meaning":"luật lệ, quy định"},{"id":178,"char":"古代","hanViet":"cổ đại","pinyin":"gŭdài","meaning":"thời xa xưa"},{"id":180,"char":"苦瓜","hanViet":"khổ qua","pinyin":"kŭguā","meaning":"mướp đắng"},{"id":182,"char":"辛苦","hanViet":"tân khổ","pinyin":"xīnků","meaning":"vất vả, khổ cực."},{"id":184,"char":"姑娘","hanViet":"cô nương","pinyin":"gūniang","meaning":"cô gái, cô nàng (thường đọc thành gūniang)"},{"id":185,"char":"固守","hanViet":"cố thủ","pinyin":"gùshǒu","meaning":"cố giữ lấy"},{"id":192,"char":"介紹","hanViet":"介绍 - giới thiệu","pinyin":"jièshào","meaning":"nói về"},{"id":194,"char":"仙界","hanViet":"tiên giới","pinyin":"xiānjiè","meaning":"cõi tiên"},{"id":197,"char":"馬虎","hanViet":"马虎 - mã hỗ","pinyin":"măhu","meaning":"qua loa, đại khái"},{"id":201,"char":"密碼","hanViet":"密码 - mật mã","pinyin":"mìmă","meaning":"số hiệu mật"},{"id":202,"char":"號碼","hanViet":"号码 - hiệu mã","pinyin":"hàomă","meaning":"số, mã số"},{"id":203,"char":"書包","hanViet":"书包 - thư bao","pinyin":"shūbāo","meaning":"cặp sách, cặp đựng sách đi học."},{"id":204,"char":"包容","hanViet":"bao dung","pinyin":"bāoróng","meaning":"chứa, dung nạp, độ lượng."},{"id":207,"char":"懷抱","hanViet":"怀抱 - hoài bão","pinyin":"huáibào","meaning":"ôm, giữ trong lòng, ôm ấp"},{"id":208,"char":"已然","hanViet":"dĩ nhiên","pinyin":"yirán","meaning":"chắc chắn rồi, việc đã rồi."},{"id":209,"char":"已往","hanViet":"dĩ vãng","pinyin":"yiwăng","meaning":"trước đây"},{"id":214,"char":"記事","hanViet":"记事 - kí sự","pinyin":"jìshì","meaning":"ghi lại sự việc"},{"id":217,"char":"居住","hanViet":"cư trú","pinyin":"jūzhù","meaning":"ở, sống ở"},{"id":218,"char":"居民","hanViet":"cư dân","pinyin":"jūmín","meaning":"người dân ở trong một khu vực nhất định"},{"id":219,"char":"移居","hanViet":"di cư","pinyin":"yíjū","meaning":"chuyển đến chỗ khác sinh sống"},{"id":223,"char":"拘束","hanViet":"câu thúc","pinyin":"jūshù","meaning":"gò bó, ép buộc, hạn chế"},{"id":224,"char":"拘泥","hanViet":"câu nệ","pinyin":"jūnì","meaning":"cố chấp, khăng khăng"},{"id":226,"char":"海狗","hanViet":"hải cẩu","pinyin":"hǎigǒu","meaning":"chó biển."},{"id":231,"char":"時局","hanViet":"时局 - thời cục","pinyin":"shíjú","meaning":"tình hình xã hội, chính trị trong một thời gian nào đó."},{"id":232,"char":"最少","hanViet":"tối thiểu","pinyin":"zuìshǎo","meaning":"ít nhất"},{"id":235,"char":"尖頭","hanViet":"尖头 - tiêm đầu","pinyin":"jiāntóu","meaning":"đầu nhọn, mũi nhọn."},{"id":236,"char":"你們","hanViet":"你们 - nhĩ môn","pinyin":"nǐmen","meaning":"các bạn"},{"id":237,"char":"您好","hanViet":"nâm hảo","pinyin":"nínhǎo","meaning":"chào ngài, chào bạn (lịch sự)"},{"id":242,"char":"占星","hanViet":"chiêm tinh","pinyin":"zhānxīng","meaning":"xem sao mà đoán vận mệnh"},{"id":244,"char":"佔用","hanViet":"占用 - chiếm dụng","pinyin":"zhànyòng","meaning":"chiếm lấy, tranh thủ, dùng."},{"id":245,"char":"商店","hanViet":"thương điếm","pinyin":"shāngdiàn","meaning":"hiệu buôn, cửa hàng"},{"id":247,"char":"起床","hanViet":"khởi sàng","pinyin":"qǐchuáng","meaning":"thức dậy"},{"id":251,"char":"告訴","hanViet":"告诉 - cáo tố","pinyin":"gàosù","meaning":"nói, bảo, báo cho, kiện lên"},{"id":263,"char":"談判","hanViet":"谈判 - đàm phán","pinyin":"tánpàn","meaning":"nói chuyện để giải quyết việc chung"},{"id":265,"char":"結伴","hanViet":"结伴 - kết bạn","pinyin":"jiébàn","meaning":"đi lại với nhau"},{"id":266,"char":"攪拌","hanViet":"搅拌 - giảo bạn","pinyin":"jiǎobàn","meaning":"quấy, trộn, khuấy"},{"id":271,"char":"股份","hanViet":"cổ phần","pinyin":"gŭfèn","meaning":"股份公司 [gŭfèn gōngsī] công ty cổ phần"},{"id":273,"char":"紛紜","hanViet":"纷纭 - phân vân","pinyin":"fēnyún","meaning":"rối ren"},{"id":274,"char":"紛爭","hanViet":"纷争 - phân tranh","pinyin":"fēnzhēng","meaning":"tranh chấp"},{"id":277,"char":"貧士","hanViet":"贫士 - bần sĩ","pinyin":"pínshì","meaning":"người nghèo"},{"id":279,"char":"打扮","hanViet":"đả ban","pinyin":"dăban","meaning":"trang điểm, ăn diện."},{"id":284,"char":"詳述","hanViet":"详述 - tường thuật","pinyin":"xiángshù","meaning":"trình bày đầy đủ"},{"id":286,"char":"海洋","hanViet":"hải dương","pinyin":"hǎiyáng","meaning":"biển"},{"id":299,"char":"比如","hanViet":"tỉ như","pinyin":"bǐrú","meaning":"ví dụ như"},{"id":300,"char":"比重","hanViet":"tỉ trọng","pinyin":"bǐzhòng","meaning":"sức nặng của một vật so với sức nặng của nước, khi cùng một thể tích"},{"id":301,"char":"批評","hanViet":"批评 - phê bình","pinyin":"pīpíng","meaning":"góp ý kiến, chỉ ra những thiếu sót, khuyết điểm"},{"id":303,"char":"北京","hanViet":"Bắc Kinh","pinyin":"běijīng","meaning":"thủ đô của Trung Quốc"},{"id":305,"char":"背景","hanViet":"bối cảnh","pinyin":"bèijing","meaning":"cảnh vật làm nền"},{"id":306,"char":"背約","hanViet":"背约 - bội ước","pinyin":"bèiyuē","meaning":"làm trái lời hứa"},{"id":311,"char":"指紋","hanViet":"指纹 - chỉ vân","pinyin":"zhǐwén","meaning":"vân tay"},{"id":312,"char":"父兄","hanViet":"phụ huynh","pinyin":"fùxiōng","meaning":"cha và anh (chỉ người lớn trong nhà)"},{"id":313,"char":"父母","hanViet":"phụ mẫu","pinyin":"fùmŭ","meaning":"bố mẹ"},{"id":316,"char":"交易","hanViet":"giao dịch","pinyin":"jiāoyì","meaning":"mua bán đổi chác với nhau"},{"id":317,"char":"學校","hanViet":"学校 - học hiệu","pinyin":"xuéxiào","meaning":"trường học."},{"id":318,"char":"校長","hanViet":"校长 - hiệu trưởng","pinyin":"xiàozhăng","meaning":"hiệu trưởng"},{"id":319,"char":"校訂","hanViet":"校订 - hiệu đính","pinyin":"jiàodìng","meaning":"sửa chữa"},{"id":320,"char":"印信","hanViet":"ấn tín","pinyin":"yìnxìn","meaning":"chỉ chung các loại ấn chương"},{"id":321,"char":"印行","hanViet":"ấn hành","pinyin":"yìnxíng","meaning":"in ấn và phát hành"},{"id":323,"char":"巴不得","hanViet":"ước gì","pinyin":"bābù dé","meaning":"chỉ mong sao"},{"id":324,"char":"把握","hanViet":"bả ác","pinyin":"bǎwò","meaning":"cầm chắc (vật), nắm bắt (sự việc), chắc chắn."},{"id":327,"char":"爸爸","hanViet":"bả bả","pinyin":"bàba","meaning":"bố, cha, ba"},{"id":333,"char":"絕交","hanViet":"绝交 - tuyệt giao","pinyin":"juéjiāo","meaning":"cắt đứt mối quan hệ"},{"id":335,"char":"采邑","hanViet":"thái ấp","pinyin":"căiyì","meaning":"đất vua cấp cho quan để hưởng hoa lợi."},{"id":338,"char":"千秋","hanViet":"thiên thu","pinyin":"qiānqiū","meaning":"nghìn thu"},{"id":339,"char":"火舌","hanViet":"hỏa thiệt","pinyin":"huǒshé","meaning":"ngọn lửa"},{"id":340,"char":"生活","hanViet":"sinh hoạt","pinyin":"shēnghuó","meaning":"đời sống, cuộc sống."},{"id":341,"char":"談話","hanViet":"谈话 - đàm thoại","pinyin":"tánhuà","meaning":"nói chuyện"},{"id":342,"char":"會話","hanViet":"会话 - hội thoại","pinyin":"huìhuà","meaning":"nói chuyện"},{"id":345,"char":"吾人","hanViet":"ngô nhân","pinyin":"wúrén","meaning":"chúng ta"},{"id":346,"char":"悟道","hanViet":"ngộ đạo","pinyin":"wùdào","meaning":"hiểu đạo lý"},{"id":355,"char":"母親","hanViet":"母亲 - mẫu thân","pinyin":"mǔqīn","meaning":"mẹ"},{"id":356,"char":"母妄言","hanViet":"","pinyin":"wú wàngyán","meaning":"đừng nói xằng"},{"id":357,"char":"每日","hanViet":"mỗi nhật","pinyin":"měirì","meaning":"mỗi ngày"},{"id":359,"char":"後悔","hanViet":"后悔 - hậu hối","pinyin":"hòuhuǐ","meaning":"hối hận"},{"id":360,"char":"悔改","hanViet":"hối cải","pinyin":"huǐgǎi","meaning":"sửa đổi lỗi lầm."},{"id":362,"char":"海外","hanViet":"hải ngoại","pinyin":"hǎiwài","meaning":"ở nước ngoài"},{"id":364,"char":"安全","hanViet":"an toàn","pinyin":"ānquán","meaning":"yên ổn trọn vẹn, không có nguy hiểm gì cả."},{"id":366,"char":"按摩","hanViet":"án ma","pinyin":"ànmó","meaning":"xoa bóp, mátxa"},{"id":367,"char":"按時","hanViet":"按时 - án thời","pinyin":"ànshí","meaning":"đúng hạn"},{"id":369,"char":"案子","hanViet":"án tử","pinyin":"ànzi","meaning":"cái bàn"},{"id":370,"char":"香案","hanViet":"hương án","pinyin":"xiāng'àn","meaning":"bàn để hương khói, thờ cúng"},{"id":371,"char":"奴才","hanViet":"nô tài","pinyin":"núcái","meaning":"đày tớ, nô bộc"},{"id":372,"char":"奴婢","hanViet":"nô tì","pinyin":"núbì","meaning":"đứa ở gái"},{"id":373,"char":"怒氣","hanViet":"怒气 - nộ khí","pinyin":"nùqì","meaning":"cơn giận dữ"},{"id":374,"char":"努力","hanViet":"nỗ lực","pinyin":"nǔlì","meaning":"gắng sức"},{"id":375,"char":"如果","hanViet":"như quả","pinyin":"rúguǒ","meaning":"nếu như"},{"id":377,"char":"容恕","hanViet":"dung thứ","pinyin":"róngshù","meaning":"bao dung."},{"id":378,"char":"回家","hanViet":"hồi gia","pinyin":"huíjiā","meaning":"về nhà."},{"id":379,"char":"家事","hanViet":"gia sự","pinyin":"jiāshì","meaning":"việc nhà"},{"id":381,"char":"再嫁","hanViet":"tái giá","pinyin":"zàijià","meaning":"kết hôn lần nữa"},{"id":382,"char":"安坐","hanViet":"an toạ","pinyin":"ānzuò","meaning":"ngồi yên ổn."},{"id":384,"char":"座次","hanViet":"tọa thứ","pinyin":"zuòcì","meaning":"thứ tự chỗ ngồi"},{"id":386,"char":"挫折","hanViet":"tỏa chiết","pinyin":"cuòzhé","meaning":"chèn ép, cản trở, vấp ngã, thua thiệt."},{"id":387,"char":"春天","hanViet":"xuân thiên","pinyin":"chūntiān","meaning":"mùa xuân"},{"id":388,"char":"青春","hanViet":"thanh xuân","pinyin":"qīngchūn","meaning":"tuổi trẻ"},{"id":394,"char":"星期","hanViet":"tinh kỳ","pinyin":"xīngqī","meaning":"tuần lễ, ngày trong tuần."},{"id":400,"char":"性格","hanViet":"tính cách","pinyin":"xìnggé","meaning":"tính tình"},{"id":402,"char":"貴姓","hanViet":"贵姓 - quý tính","pinyin":"guìxìng","meaning":"quý danh"},{"id":403,"char":"百姓","hanViet":"bách tính","pinyin":"bǎixìng","meaning":"nhân dân, trăm họ"},{"id":404,"char":"旦夕","hanViet":"đán tịch","pinyin":"dànxī","meaning":"sớm tối, sớm chiều."},{"id":405,"char":"元旦","hanViet":"nguyên đán","pinyin":"yuándàn","meaning":"ngày đầu năm."},{"id":406,"char":"不但","hanViet":"bất đãn","pinyin":"bùdàn","meaning":"không những"},{"id":407,"char":"但是","hanViet":"đãn thị","pinyin":"dànshì","meaning":"nhưng, tuy nhiên"},{"id":408,"char":"平坦","hanViet":"bình thản","pinyin":"píngtăn","meaning":"bằng phẳng"},{"id":409,"char":"坦然","hanViet":"thản nhiên","pinyin":"tănrán","meaning":"bình tĩnh, điềm tĩnh, không lo sợ."},{"id":410,"char":"早已","hanViet":"tảo dĩ","pinyin":"zǎoyǐ","meaning":"từ lâu"},{"id":413,"char":"支店","hanViet":"chỉ điếm","pinyin":"zhīdiàn","meaning":"chi nhánh, cửa hàng chi nhánh"},{"id":414,"char":"支出","hanViet":"chỉ xuất","pinyin":"zhīchū","meaning":"chi tiêu"},{"id":415,"char":"枝丫","hanViet":"chi nha","pinyin":"zhīyā","meaning":"chạc cây."},{"id":416,"char":"四肢","hanViet":"tứ chi","pinyin":"sìzhī","meaning":"4 chi (2 tay 2 chân của người)."},{"id":417,"char":"技術","hanViet":"技术 - kĩ thuật","pinyin":"jìshù","meaning":"kỹ thuật"}]
+                };
+
+            const selectionScreen = document.getElementById('selectionScreen');
+            const quizScreen = document.getElementById('quizScreen');
+            const sourceSelectionList = document.getElementById('sourceSelectionList');
+            const characterSelectionList = document.getElementById('characterSelectionList');
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            const deselectAllBtn = document.getElementById('deselectAllBtn');
+            const startQuizBtn = document.getElementById('startQuizBtn');
+            const randomSelectionContainer = document.getElementById('randomSelectionContainer');
+            
+            let currentQuizChars = [];
+            let reviewList = new Set(); 
+            let currentQuestionIndex = 0;
+            let score = 0;
+            let hintCount = 0;
+            
+            function shuffleArray(array) {
+                let currentIndex = array.length, randomIndex;
+                while (currentIndex != 0) {
+                    randomIndex = Math.floor(Math.random() * currentIndex);
+                    currentIndex--;
+                    [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+                }
+                return array;
+            }
+
+            function getSimpleMeaning(meaning) {
+                return meaning.split(';')[0].trim();
+            }
+
+            function renderSourceList() {
+                sourceSelectionList.innerHTML = '';
+                Object.keys(allCharactersData).forEach(sourceName => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer';
+                    label.innerHTML = `<input type="checkbox" class="source-checkbox" value="${sourceName}" checked> <span>${sourceName}</span>`;
+                    sourceSelectionList.appendChild(label);
+                });
+                sourceSelectionList.addEventListener('change', renderCharacterList);
+                renderCharacterList(); 
+            }
+
+            function renderCharacterList() {
+                const selectedSourceNames = Array.from(document.querySelectorAll('.source-checkbox:checked')).map(cb => cb.value);
+                let charactersToShow = [];
+                selectedSourceNames.forEach(name => {
+                    charactersToShow = charactersToShow.concat(allCharactersData[name] || []);
+                });
+                
+                charactersToShow.sort((a,b) => (a.id - b.id));
+
+                characterSelectionList.innerHTML = '';
+                if(charactersToShow.length === 0) {
+                     characterSelectionList.innerHTML = '<p class="col-span-full text-center text-gray-500">Vui lòng chọn nguồn dữ liệu ở trên.</p>';
+                     randomSelectionContainer.classList.add('hidden');
+                     return;
+                }
+                
+                if (charactersToShow.length > 20) {
+                    randomSelectionContainer.classList.remove('hidden');
+                    document.getElementById('rand20Btn').classList.remove('hidden');
+                    document.getElementById('rand50Btn').classList.toggle('hidden', charactersToShow.length < 50);
+                    document.getElementById('rand70Btn').classList.toggle('hidden', charactersToShow.length < 70);
+                } else {
+                    randomSelectionContainer.classList.add('hidden');
+                }
+
+                charactersToShow.forEach(charData => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer text-sm';
+                    label.innerHTML = `<input type="checkbox" class="hanzi-checkbox" value="${charData.id}" checked><span>${charData.char} (${charData.hanViet})</span>`;
+                    characterSelectionList.appendChild(label);
+                });
+            }
+
+            function selectRandomChars(count) {
+                const checkboxes = Array.from(document.querySelectorAll('#characterSelectionList .hanzi-checkbox'));
+                checkboxes.forEach(cb => cb.checked = false);
+                const selectionCount = Math.min(count, checkboxes.length);
+                const shuffledCheckboxes = shuffleArray(checkboxes); 
+                for (let i = 0; i < selectionCount; i++) {
+                    shuffledCheckboxes[i].checked = true;
+                }
+            }
+
+            function startQuiz(isReview = false) {
+                if (isReview) {
+                    const allChars = Object.values(allCharactersData).flat();
+                    currentQuizChars = allChars.filter(char => reviewList.has(char.id));
+                    reviewList.clear(); 
+                } else {
+                    const selectedIds = Array.from(document.querySelectorAll('.hanzi-checkbox:checked')).map(cb => parseInt(cb.value));
+                    if (selectedIds.length === 0) {
+                        alert("Vui lòng chọn ít nhất một chữ Hán để bắt đầu quiz.");
+                        return;
+                    }
+                    const allChars = Object.values(allCharactersData).flat();
+                    currentQuizChars = allChars.filter(char => selectedIds.includes(char.id));
+                }
+
+                if (currentQuizChars.length === 0) {
+                    alert("Không có từ nào để ôn tập.");
+                    stopQuiz();
+                    return;
+                }
+
+                currentQuestionIndex = 0;
+                score = 0;
+                currentQuizChars = shuffleArray(currentQuizChars);
+
+                selectionScreen.classList.add('hidden');
+                quizScreen.classList.remove('hidden');
+                loadQuestion();
+            }
+            
+            function stopQuiz() {
+                 quizScreen.classList.add('hidden');
+                 selectionScreen.classList.remove('hidden');
+                 quizScreen.innerHTML = ''; 
+            }
+            
+            function loadQuestion() {
+                 if (currentQuestionIndex >= currentQuizChars.length) {
+                    showFinalScore();
+                    return;
+                }
+                hintCount = 0; 
+                const questionData = currentQuizChars[currentQuestionIndex];
+                const quizType = document.querySelector('input[name="quizType"]:checked').value;
+                
+                quizScreen.innerHTML = `
+                    <div id="quizContent">
+                        <h2 class="text-2xl font-semibold text-center mb-4">Câu ${currentQuestionIndex + 1} / ${currentQuizChars.length}</h2>
+                        <div id="questionDisplay" class="text-center mb-4 p-4 bg-gray-100 rounded-lg min-h-[8rem] flex items-center justify-center"></div>
+                        <p id="quizQuestionPrompt" class="text-center text-gray-600 mb-6 font-semibold"></p>
+                        <div id="answerArea" class="max-w-md mx-auto flex items-center gap-2"></div>
+                        <div id="hintArea" class="max-w-md mx-auto mt-4 text-center"></div>
+                        <div id="feedback" class="mt-6 text-center"></div>
+                    </div>
+                    <div class="mt-6 flex justify-between items-center">
+                         <div id="actionButtonsLeft" class="flex gap-2">
+                             <button id="stopQuizBtn" class="btn btn-danger">Dừng lại</button>
+                         </div>
+                         <button id="nextQuestionBtn" class="btn btn-primary hidden">Câu tiếp theo</button>
+                    </div>
+                `;
+                
+                const questionDisplay = document.getElementById('questionDisplay');
+                const questionPromptEl = document.getElementById('quizQuestionPrompt');
+                const answerArea = document.getElementById('answerArea');
+                const actionButtonsLeft = document.getElementById('actionButtonsLeft');
+                
+                let questionText, promptText, correctAnswer;
+
+                if (quizType === 'hanViet') {
+                    questionDisplay.innerHTML = `<div class="is-hanzi">${questionData.char}</div>`;
+                    promptText = "Gõ âm Hán Việt của chữ trên:";
+                    correctAnswer = questionData.hanViet;
+                } else { // hanTu
+                    correctAnswer = questionData.char;
+                    const questionFormatType = Math.floor(Math.random() * 2); 
+                    
+                    if (questionFormatType === 0 || !questionData.origin) { 
+                        questionText = `<div class="is-text">${getSimpleMeaning(questionData.meaning)}</div>`;
+                        promptText = "Gõ Hán tự có nghĩa trên:";
+                    } else { 
+                        questionText = `<div class="is-text text-base italic">"${questionData.origin}"</div>`;
+                        promptText = "Gõ Hán tự được mô tả như trên:";
+                    }
+                    questionDisplay.innerHTML = questionText;
+                    actionButtonsLeft.innerHTML += `
+                        <button id="hintBtn" class="btn btn-secondary text-sm">Gợi ý (2)</button>
+                        <button id="showAnswerBtn" class="btn btn-secondary text-sm">Xem Đáp Án</button>
+                    `;
+                }
+
+                questionPromptEl.textContent = promptText;
+                answerArea.innerHTML = `
+                    <input type="text" id="answerInput" class="p-2 border-2 rounded-md w-full" placeholder="Gõ câu trả lời...">
+                    <button id="submitAnswerBtn" class="btn btn-primary">Xác nhận</button>
+                `;
+
+                const answerInput = document.getElementById('answerInput');
+                const submitBtn = document.getElementById('submitAnswerBtn');
+                const submitHandler = () => handleAnswer(correctAnswer, questionData);
+
+                answerInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') { event.preventDefault(); submitHandler(); } });
+                submitBtn.addEventListener('click', submitHandler);
+
+                if (quizType === 'hanTu') {
+                    const hintBtn = document.getElementById('hintBtn');
+                    const showAnswerBtn = document.getElementById('showAnswerBtn');
+                    hintBtn.addEventListener('click', () => showHint(questionData));
+                    showAnswerBtn.addEventListener('click', () => showAnswer(correctAnswer, questionData));
+                }
+
+                document.getElementById('nextQuestionBtn').addEventListener('click', loadQuestion);
+                document.getElementById('stopQuizBtn').addEventListener('click', stopQuiz);
+            }
+            
+            function showHint(questionData){
+                reviewList.add(questionData.id);
+                const hintArea = document.getElementById('hintArea');
+                hintCount++;
+                let hintText = '';
+                if(hintCount === 1) {
+                    hintText = `Gợi ý 1: Pinyin là "${questionData.pinyin}"`;
+                    document.getElementById('hintBtn').textContent = "Gợi ý (1)";
+                } else if (hintCount === 2) {
+                    hintText = `Gợi ý 2: Âm Hán Việt là "${questionData.hanViet}"`;
+                    document.getElementById('hintBtn').disabled = true;
+                }
+                
+                const p = document.createElement('p');
+                p.textContent = hintText;
+                p.className = "text-sm text-blue-600 bg-blue-100 p-2 rounded-md mt-2";
+                hintArea.appendChild(p);
+            }
+            
+            function showAnswer(correctAnswer, questionData) {
+                reviewList.add(questionData.id);
+                handleAnswer(correctAnswer, questionData, true);
+            }
+
+            function handleAnswer(correctAnswer, questionData, wasAnswerShown = false) {
+                const answerInput = document.getElementById('answerInput');
+                const submitBtn = document.getElementById('submitAnswerBtn');
+                const feedbackEl = document.getElementById('feedback');
+                const hintBtn = document.getElementById('hintBtn');
+                const showAnswerBtn = document.getElementById('showAnswerBtn');
+                const userAnswer = answerInput.value.trim();
+
+                answerInput.disabled = true;
+                submitBtn.disabled = true;
+                if(hintBtn) hintBtn.disabled = true;
+                if(showAnswerBtn) showAnswerBtn.disabled = true;
+                
+                if (wasAnswerShown) {
+                     feedbackEl.innerHTML = `<p class="text-yellow-600 font-semibold text-xl">Đáp án đúng là: <span class="font-bold">${correctAnswer}</span></p>`;
+                } else {
+                    let isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+                    if(correctAnswer.includes('/')) {
+                         const altAnswers = correctAnswer.split('/').map(s => s.trim().toLowerCase());
+                         if(altAnswers.includes(userAnswer.toLowerCase())) {
+                             isCorrect = true;
+                         }
+                    }
+
+                    if(isCorrect) {
+                        score++;
+                        answerInput.classList.add('correct');
+                        feedbackEl.innerHTML = `<p class="text-green-600 font-semibold text-xl">Chính xác!</p>`;
+                    } else {
+                        reviewList.add(questionData.id); 
+                        answerInput.classList.add('incorrect');
+                        feedbackEl.innerHTML = `<p class="text-red-600 font-semibold text-xl">Sai rồi! Đáp án đúng là: <span class="font-bold">${correctAnswer}</span></p>`;
+                    }
+                }
+                
+                feedbackEl.innerHTML += `
+                    <div class="mt-4 p-4 bg-gray-100 rounded-md text-left">
+                        <p class="text-2xl font-bold">${questionData.char} - ${questionData.hanViet} (${questionData.pinyin})</p>
+                        <p class="mt-2"><b>Nghĩa:</b> ${questionData.meaning}</p>
+                    </div>
+                `;
+                
+                document.getElementById('nextQuestionBtn').classList.remove('hidden');
+                currentQuestionIndex++;
+            }
+
+            function showFinalScore() {
+                const quizScreen = document.getElementById('quizScreen');
+                 quizScreen.innerHTML = `
+                    <h2 class="text-3xl font-bold text-center mb-4">Hoàn thành!</h2>
+                    <p class="text-center text-xl mb-6">Điểm của bạn: ${score} / ${currentQuizChars.length}</p>
+                     <div id="reviewArea" class="text-center space-x-4">
+                        <button id="backToMenuBtn" class="btn btn-secondary">Quay lại</button>
+                    </div>
+                `;
+                
+                if (reviewList.size > 0) {
+                    const reviewBtn = document.createElement('button');
+                    reviewBtn.id = 'reviewIncorrectBtn';
+                    reviewBtn.className = 'btn btn-primary';
+                    reviewBtn.textContent = `Ôn Tập Lại ${reviewList.size} Từ Sai`;
+                    reviewBtn.onclick = () => startQuiz(true); // 'true' indicates a review session
+                    document.getElementById('reviewArea').prepend(reviewBtn);
+                }
+
+                document.getElementById('backToMenuBtn').addEventListener('click', stopQuiz);
+            }
+
+            function getSimpleMeaning(meaning) {
+                return meaning.split(';')[0].trim();
+            }
+
+            // Initial setup
+            renderSourceList();
+            startQuizBtn.addEventListener('click', () => startQuiz(false)); 
+            selectAllBtn.addEventListener('click', () => {
+                document.querySelectorAll('#characterSelectionList input[type="checkbox"]').forEach(cb => cb.checked = true);
+            });
+            deselectAllBtn.addEventListener('click', () => {
+                document.querySelectorAll('#characterSelectionList input[type="checkbox"]').forEach(cb => cb.checked = false);
+            });
+            document.querySelectorAll('.random-select-btn').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    const count = parseInt(event.currentTarget.dataset.count, 10);
+                    selectRandomChars(count);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
